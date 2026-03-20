@@ -1,0 +1,17 @@
+{
+  "name": "food-app-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
+    "tailwindcss": "^4.0.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
