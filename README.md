@@ -29,7 +29,7 @@ ghcr.io/pashutk/food-app:latest
 
 2. Log in to the registry on your server:
    ```sh
-   docker login ghcr.io -u pashutk -p <your-token>
+   docker login ghcr.io -u <github-username> -p <your-token>
    ```
 
 3. Create a working directory with a `.env` file:
