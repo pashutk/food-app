@@ -13,7 +13,7 @@ async function req<T>(path: string, options: RequestInit = {}): Promise<T> {
       ...options.headers,
     },
   });
-  if (res.status === 401) { logout(); location.reload(); throw new Error('Unauthorized'); }
+  if (res.status === 401) { const wasAuth = !!token(); logout(); if (wasAuth) location.reload(); throw new Error('Unauthorized'); }
   if (!res.ok) { const e = await res.json().catch(() => ({})); throw new Error(e.error || `HTTP ${res.status}`); }
   return res.json();
 }

@@ -68,7 +68,7 @@ export async function renderDishEditor(
             <label class="block text-sm font-medium text-gray-700 mb-2">Meal tags</label>
             <div class="flex gap-2 flex-wrap">
               ${ALL_TAGS.map(t => `
-                <button type="button" data-tag="${t}"
+                <button type="button" data-tag="${t}" aria-pressed="${state.tags.includes(t)}"
                   class="tag-btn text-sm px-3 py-1 rounded-full border transition-colors ${state.tags.includes(t) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}">
                   ${TAG_LABELS[t]}
                 </button>
@@ -155,7 +155,7 @@ export async function renderDishEditor(
     state.notes = container.querySelector<HTMLTextAreaElement>('#notes')!.value;
 
     // Read ingredients
-    container.querySelectorAll('[data-ing]').forEach(row => {
+    container.querySelectorAll('div[data-ing]').forEach(row => {
       const i = parseInt((row as HTMLElement).dataset.ing!);
       if (!state.ingredients[i]) return;
       state.ingredients[i].name = row.querySelector<HTMLInputElement>('[data-field="name"]')!.value.trim();

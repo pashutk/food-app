@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [tailwindcss()],
   server: {
     proxy: {
-      '/api': 'http://localhost:3000',
+      '/api': `http://localhost:${process.env.VITE_BACKEND_PORT ?? '3000'}`,
     },
   },
   build: {

@@ -5,8 +5,8 @@ import { icon, CHEVRON_LEFT, CHEVRON_RIGHT, COPY, PRINTER } from '../icons';
 function today() { return new Date().toISOString().slice(0, 10); }
 
 function addDays(date: string, n: number) {
-  const d = new Date(date + 'T00:00:00');
-  d.setDate(d.getDate() + n);
+  const d = new Date(date + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
