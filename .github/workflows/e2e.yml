@@ -28,6 +28,14 @@ jobs:
           npm ci --prefix frontend
           npm ci --prefix e2e
 
+      - name: Build frontend
+        run: npm run build
+        working-directory: frontend
+
+      - name: Build backend
+        run: npm run build
+        working-directory: backend
+
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
         working-directory: e2e
