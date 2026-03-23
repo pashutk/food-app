@@ -146,7 +146,10 @@ export async function renderDishLibrary(container: HTMLElement) {
   function renderImportPanel() {
     return `
       <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
-        <h3 class="font-medium text-gray-900 dark:text-gray-100 text-sm">Import dishes from JSON</h3>
+        <div class="flex items-center justify-between">
+          <h3 class="font-medium text-gray-900 dark:text-gray-100 text-sm">Import dishes from JSON</h3>
+          <button id="copy-schema-btn" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 hover:bg-gray-50 dark:hover:bg-gray-800">Copy schema</button>
+        </div>
         <pre class="bg-gray-50 dark:bg-gray-800 rounded p-3 overflow-x-auto text-xs text-gray-600 dark:text-gray-400 leading-relaxed">${escapeHtml(IMPORT_SCHEMA)}</pre>
         <textarea id="import-json" rows="5" placeholder="Paste your JSON here… (// comments are stripped before parsing)"
           class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
@@ -161,6 +164,10 @@ export async function renderDishLibrary(container: HTMLElement) {
   }
 
   function attachImportHandlers() {
+    container.querySelector('#copy-schema-btn')!.addEventListener('click', () => {
+      navigator.clipboard.writeText(IMPORT_SCHEMA).catch(() => {});
+    });
+
     container.querySelector('#import-cancel')!.addEventListener('click', () => {
       showImport = false;
       render();
