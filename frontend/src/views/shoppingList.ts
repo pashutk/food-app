@@ -51,39 +51,39 @@ export async function renderShoppingList(container: HTMLElement) {
     container.innerHTML = `
       <div class="space-y-4">
         <div class="flex items-center gap-2">
-          <button id="prev-day" class="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100">
+          <button id="prev-day" class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300">
             ${icon(CHEVRON_LEFT)}
           </button>
           <input type="date" id="date-input" value="${date}"
-            class="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
-          <button id="next-day" class="p-1.5 rounded-lg border border-gray-200 hover:bg-gray-100">
+            class="flex-1 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          <button id="next-day" class="p-1.5 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 dark:text-gray-300">
             ${icon(CHEVRON_RIGHT)}
           </button>
         </div>
-        <p class="text-sm text-gray-500 text-center -mt-2">${formatDate(date)}</p>
+        <p class="text-sm text-gray-500 dark:text-gray-400 text-center -mt-2">${formatDate(date)}</p>
 
         ${items.length === 0
-          ? `<div class="bg-white rounded-lg border border-gray-200 p-8 text-center text-sm text-gray-400">
+          ? `<div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-8 text-center text-sm text-gray-400 dark:text-gray-500">
               No ingredients — menu is empty or all dishes are takeout
             </div>`
           : `
-            <div class="bg-white rounded-lg border border-gray-200 divide-y divide-gray-100">
+            <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
               ${items.map(i => `
                 <div class="flex items-center px-4 py-3 gap-3">
-                  <span class="flex-1 text-sm text-gray-900">${i.name}</span>
-                  <span class="text-sm text-gray-500">${i.quantity}</span>
-                  <span class="text-sm text-gray-400 w-12 text-right">${i.unit}</span>
+                  <span class="flex-1 text-sm text-gray-900 dark:text-gray-100">${i.name}</span>
+                  <span class="text-sm text-gray-500 dark:text-gray-400">${i.quantity}</span>
+                  <span class="text-sm text-gray-400 dark:text-gray-500 w-12 text-right">${i.unit}</span>
                 </div>
               `).join('')}
             </div>
 
             <div class="flex gap-2 justify-end">
               <button id="copy-btn"
-                class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                class="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                 ${icon(COPY)} Copy
               </button>
               <button id="print-btn"
-                class="flex items-center gap-1.5 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 hover:bg-gray-50">
+                class="flex items-center gap-1.5 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800">
                 ${icon(PRINTER)} Print
               </button>
             </div>
@@ -122,6 +122,6 @@ export async function renderShoppingList(container: HTMLElement) {
     });
   }
 
-  container.innerHTML = `<div class="flex justify-center py-8"><div class="text-gray-400 text-sm">Loading…</div></div>`;
+  container.innerHTML = `<div class="flex justify-center py-8"><div class="text-gray-400 dark:text-gray-500 text-sm">Loading…</div></div>`;
   await load();
 }

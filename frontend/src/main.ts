@@ -26,7 +26,7 @@ function navTab(id: string, label: string, activeTab: string) {
   const active = activeTab === id;
   const cls = active
     ? 'border-b-2 border-blue-600 text-blue-600'
-    : 'border-b-2 border-transparent text-gray-600 hover:text-gray-900';
+    : 'border-b-2 border-transparent text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100';
   return `<a href="#${id}" class="flex items-center gap-1.5 px-3 py-3 text-sm font-medium ${cls}">${label}</a>`;
 }
 
@@ -42,12 +42,12 @@ function renderApp() {
   const tab = getActiveTab();
 
   app.innerHTML = `
-    <div class="min-h-screen bg-gray-50 flex flex-col">
-      <header class="bg-white border-b border-gray-200 sticky top-0 z-10">
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+      <header class="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
         <div class="max-w-3xl mx-auto px-4">
           <div class="flex items-center justify-between h-14">
-            <span class="font-semibold text-gray-900">Food & Menu Manager</span>
-            <button id="logout-btn" class="text-sm text-gray-500 hover:text-gray-700">Logout</button>
+            <span class="font-semibold text-gray-900 dark:text-gray-100">Food & Menu Manager</span>
+            <button id="logout-btn" class="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">Logout</button>
           </div>
           <nav class="flex -mb-px gap-1">
             ${navTab('menu', icon(CALENDAR) + ' Menu', tab)}

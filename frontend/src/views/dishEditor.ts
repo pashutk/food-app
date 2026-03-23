@@ -49,27 +49,27 @@ export async function renderDishEditor(
     container.innerHTML = `
       <div class="space-y-5">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-semibold text-gray-900">${dishId ? 'Edit Dish' : 'New Dish'}</h2>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">${dishId ? 'Edit Dish' : 'New Dish'}</h2>
           ${dishId ? `
             <button id="delete-btn" class="text-sm text-red-600 hover:text-red-700">Delete dish</button>
           ` : ''}
         </div>
 
-        ${error ? `<div class="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">${error}</div>` : ''}
+        ${error ? `<div class="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">${error}</div>` : ''}
 
-        <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-4">
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Name</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Name</label>
             <input id="name" type="text" value="${escapeAttr(state.name)}"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              class="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Meal tags</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Meal tags</label>
             <div class="flex gap-2 flex-wrap">
               ${ALL_TAGS.map(t => `
                 <button type="button" data-tag="${t}" aria-pressed="${state.tags.includes(t)}"
-                  class="tag-btn text-sm px-3 py-1 rounded-full border transition-colors ${state.tags.includes(t) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}">
+                  class="tag-btn text-sm px-3 py-1 rounded-full border transition-colors ${state.tags.includes(t) ? 'bg-blue-600 text-white border-blue-600' : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'}">
                   ${TAG_LABELS[t]}
                 </button>
               `).join('')}
@@ -79,16 +79,16 @@ export async function renderDishEditor(
           <div>
             <label class="flex items-center gap-2 cursor-pointer">
               <input id="takeout" type="checkbox" ${state.takeout ? 'checked' : ''}
-                class="rounded border-gray-300 text-blue-600 focus:ring-blue-500" />
-              <span class="text-sm font-medium text-gray-700">Takeout dish</span>
+                class="rounded border-gray-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500" />
+              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Takeout dish</span>
             </label>
-            ${state.takeout ? `<p class="text-xs text-orange-600 mt-1">No ingredients or recipe for takeout dishes</p>` : ''}
+            ${state.takeout ? `<p class="text-xs text-orange-600 dark:text-orange-400 mt-1">No ingredients or recipe for takeout dishes</p>` : ''}
           </div>
         </div>
 
         ${!state.takeout ? `
-          <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-3">
-            <h3 class="text-sm font-medium text-gray-900">Ingredients</h3>
+          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+            <h3 class="text-sm font-medium text-gray-900 dark:text-gray-100">Ingredients</h3>
             <div id="ingredients-list" class="space-y-2">
               ${state.ingredients.map((ing, i) => renderIngredientRow(ing, i)).join('')}
             </div>
@@ -98,17 +98,17 @@ export async function renderDishEditor(
             </button>
           </div>
 
-          <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
-            <label class="block text-sm font-medium text-gray-900">Instructions</label>
+          <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-2">
+            <label class="block text-sm font-medium text-gray-900 dark:text-gray-100">Instructions</label>
             <textarea id="instructions" rows="5"
-              class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">${escapeHtml(state.instructions)}</textarea>
+              class="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">${escapeHtml(state.instructions)}</textarea>
           </div>
         ` : ''}
 
-        <div class="bg-white rounded-lg border border-gray-200 p-4 space-y-2">
-          <label class="block text-sm font-medium text-gray-900">Notes</label>
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-2">
+          <label class="block text-sm font-medium text-gray-900 dark:text-gray-100">Notes</label>
           <textarea id="notes" rows="2"
-            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">${escapeHtml(state.notes)}</textarea>
+            class="w-full border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">${escapeHtml(state.notes)}</textarea>
         </div>
 
         <div class="flex gap-3">
@@ -117,7 +117,7 @@ export async function renderDishEditor(
             ${saving ? 'Saving…' : 'Save'}
           </button>
           <button id="cancel-btn"
-            class="px-4 py-2 text-sm border border-gray-200 rounded-lg hover:bg-gray-50">
+            class="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800">
             Cancel
           </button>
         </div>
@@ -132,13 +132,13 @@ export async function renderDishEditor(
       <div class="flex gap-2 items-center" data-ing="${i}">
         <input type="text" placeholder="Ingredient" value="${escapeAttr(ing.name)}"
           data-field="name"
-          class="flex-1 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          class="flex-1 border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
         <input type="number" placeholder="Qty" value="${ing.quantity || ''}"
           data-field="quantity" min="0" step="any"
-          class="w-20 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          class="w-20 border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
         <input type="text" placeholder="Unit" value="${escapeAttr(ing.unit)}"
           data-field="unit"
-          class="w-16 border border-gray-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
+          class="w-16 border border-gray-200 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500" />
         <button class="remove-ing text-gray-400 hover:text-red-500" data-ing="${i}">
           ${icon(TRASH)}
         </button>
@@ -242,6 +242,6 @@ export async function renderDishEditor(
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  container.innerHTML = `<div class="flex justify-center py-8"><div class="text-gray-400 text-sm">Loading…</div></div>`;
+  container.innerHTML = `<div class="flex justify-center py-8"><div class="text-gray-400 dark:text-gray-500 text-sm">Loading…</div></div>`;
   render();
 }
