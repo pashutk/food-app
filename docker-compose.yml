@@ -9,15 +9,3 @@ services:
       - .env
     restart: unless-stopped
 
-  mcp-server:
-    build:
-      context: ./mcp-server
-    stdin_open: true
-    environment:
-      - API_BASE_URL=http://app:3000
-      - AUTH_EMAIL=${AUTH_EMAIL}
-      - AUTH_PASSWORD=${AUTH_PASSWORD}
-    depends_on:
-      - app
-    profiles:
-      - mcp

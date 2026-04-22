@@ -32,12 +32,3 @@ jobs:
           tags: ghcr.io/${{ github.repository }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-
-      - name: Build and push mcp-server
-        uses: docker/build-push-action@v6
-        with:
-          context: ./mcp-server
-          push: true
-          tags: ghcr.io/${{ github.repository }}/mcp-server:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max

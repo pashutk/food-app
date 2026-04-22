@@ -5,6 +5,7 @@ import path from 'path';
 import { authRouter } from './routes/auth';
 import { dishesRouter } from './routes/dishes';
 import { menusRouter } from './routes/menus';
+import { startMcpServer } from './mcp-server';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is required');
 if (!process.env.AUTH_USERNAME) throw new Error('AUTH_USERNAME is required');
@@ -26,4 +27,6 @@ app.get(/^(?!\/api).*/, (_req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Listening on :${port}`));
+startMcpServer().then(() => {
+  app.listen(port, () => console.log(`HTTP server listening on :${port} | MCP server running on stdio`));
+});
