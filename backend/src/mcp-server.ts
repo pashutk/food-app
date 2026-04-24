@@ -14,13 +14,13 @@ let jwtToken: string | null = null;
 type MealTag = "breakfast" | "lunch" | "dinner" | "snack" | "dessert" | "drink";
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
 
-interface Ingredient {
+export interface Ingredient {
   name: string;
   quantity: number;
   unit: string;
 }
 
-interface Dish {
+export interface Dish {
   id: number;
   name: string;
   tags: MealTag[];
@@ -32,18 +32,18 @@ interface Dish {
   updated_at: string;
 }
 
-interface MenuEntry {
+export interface MenuEntry {
   slot: MealSlot;
   dishId: number;
   servings: number;
 }
 
-interface DailyMenu {
+export interface DailyMenu {
   date: string;
   entries: MenuEntry[];
 }
 
-interface ShoppingItem {
+export interface ShoppingItem {
   name: string;
   quantity: number;
   unit: string;
@@ -97,7 +97,7 @@ async function apiFetch(
 
 // ── Shopping list aggregation (replicates frontend logic) ──────────────────
 
-function aggregateShoppingList(
+export function aggregateShoppingList(
   menu: DailyMenu,
   dishMap: Map<number, Dish>
 ): ShoppingItem[] {
