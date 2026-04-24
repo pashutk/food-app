@@ -5,6 +5,7 @@ import path from 'path';
 import { authRouter } from './routes/auth';
 import { dishesRouter } from './routes/dishes';
 import { menusRouter } from './routes/menus';
+import { mcpRouter, startMcpHttpServer } from './routes/mcp';
 import { startMcpServer } from './mcp-server';
 
 if (!process.env.JWT_SECRET) throw new Error('JWT_SECRET is required');
@@ -18,6 +19,7 @@ app.use(express.json());
 app.use('/api/auth', authRouter);
 app.use('/api/dishes', dishesRouter);
 app.use('/api/menus', menusRouter);
+app.use(mcpRouter);
 
 // Serve frontend in production
 const publicDir = path.resolve(__dirname, '../public');
@@ -27,6 +29,8 @@ app.get(/^(?!\/api).*/, (_req, res) => {
 });
 
 const port = process.env.PORT || 3000;
-startMcpServer().then(() => {
-  app.listen(port, () => console.log(`HTTP server listening on :${port} | MCP server running on stdio`));
+
+// Start MCP HTTP server for Claude Code connections
+startMcpHttpServer().then(() => {
+  app.listen(port, () => console.log(`HTTP server listening on :${port} | MCP server running on HTTP (/mcp)`));
 });

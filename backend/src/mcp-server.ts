@@ -572,7 +572,7 @@ server.tool(
   }
 );
 
-// ── Exported entry point ───────────────────────────────────────────────────
+// ── Exported entry point ────────────────────────────────────────────────────
 
 export async function startMcpServer(): Promise<void> {
   if (AUTH_EMAIL && AUTH_PASSWORD && !jwtToken) {
@@ -595,3 +595,7 @@ export async function startMcpServer(): Promise<void> {
   await server.connect(transport);
   process.stderr.write("food-app MCP server running on stdio.\n");
 }
+
+// ── HTTP Server Export ──────────────────────────────────────────────────────
+
+export { server };
