@@ -320,10 +320,10 @@ describe('MCP server integration tests', () => {
         arguments: { username: 'test@example.com', password: 'password123' },
       });
 
-      expect(result.content).toHaveLength(1);
-      expect(result.content[0].type).toBe('text');
-      expect(result.content[0].text as string).toContain('Authentication successful');
-      expect(result.content[0].text as string).toContain('JWT token stored');
+      expect((result as any).content).toHaveLength(1);
+      expect((result as any).content[0].type).toBe('text');
+      expect((result as any).content[0].text as string).toContain('Authentication successful');
+      expect((result as any).content[0].text as string).toContain('JWT token stored');
 
       await client.close();
     });
@@ -345,7 +345,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text as string).toContain('Authentication failed');
+      expect((result as any).content[0].text as string).toContain('Authentication failed');
 
       await client.close();
     });
@@ -367,7 +367,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      expect(result.content[0].text as string).toContain('Authentication successful');
+      expect((result as any).content[0].text as string).toContain('Authentication successful');
 
       await client.close();
     });
@@ -388,7 +388,7 @@ describe('MCP server integration tests', () => {
       const result = await client.callTool({ name: 'list_dishes', arguments: {} });
 
       expect(result.isError ?? false).toBe(false);
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed).toHaveLength(3);
 
       await client.close();
@@ -408,7 +408,7 @@ describe('MCP server integration tests', () => {
         arguments: { tag: 'breakfast' },
       });
 
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].name).toBe('Oatmeal');
 
@@ -429,7 +429,7 @@ describe('MCP server integration tests', () => {
         arguments: { takeout: true },
       });
 
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].name).toBe('Pizza');
 
@@ -446,7 +446,7 @@ describe('MCP server integration tests', () => {
       const result = await client.callTool({ name: 'list_dishes', arguments: {} });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text as string).toContain('Not authenticated');
+      expect((result as any).content[0].text as string).toContain('Not authenticated');
 
       await client.close();
     });
@@ -470,7 +470,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed.date).toBe('2025-01-15');
       expect(parsed.entries).toHaveLength(3);
 
@@ -494,7 +494,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed.entries).toHaveLength(0);
 
       await client.close();
@@ -515,7 +515,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError).toBe(true);
-      expect(result.content[0].text as string).toContain('API error 404');
+      expect((result as any).content[0].text as string).toContain('API error 404');
 
       await client.close();
     });
@@ -540,7 +540,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
 
       // Oatmeal (2 servings): Oats 200g, Milk 400ml
       // Salad (1 serving): Lettuce 50g, Tomato 100g
@@ -583,7 +583,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      expect(result.content[0].text as string).toContain('No menu entries found');
+      expect((result as any).content[0].text as string).toContain('No menu entries found');
 
       await client.close();
     });
@@ -605,7 +605,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      expect(result.content[0].text as string).toContain('takeout');
+      expect((result as any).content[0].text as string).toContain('takeout');
 
       await client.close();
     });
@@ -658,7 +658,7 @@ describe('MCP server integration tests', () => {
       });
 
       expect(result.isError ?? false).toBe(false);
-      const parsed = JSON.parse(result.content[0].text as string);
+      const parsed = JSON.parse((result as any).content[0].text as string);
       expect(parsed).toHaveLength(1);
       expect(parsed[0].quantity).toBe(150); // 100 + 50
       expect(parsed[0].name).toBe('Rice');

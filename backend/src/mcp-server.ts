@@ -1,101 +1,25 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { login, verifyToken } from "./services/auth";
+import { getMenu, setMenu, type MenuEntry, type DailyMenu } from "./services/menus";
+import { listDishes, createDish, updateDish, deleteDish, importDishes, type DishData, type Dish } from "./routes/dishes";
+export type { DailyMenu } from './services/menus';
+export type { Dish } from './routes/dishes';
 
-const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000";
-const AUTH_EMAIL=process.env.AUTH_EMAIL!;
-const AUTH_PASSWORD=process.env.AUTH_PASSWORD!;
+const AUTH_EMAIL = process.env.AUTH_EMAIL!;
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD!;
 
-// Stored JWT token (populated on first auth_login or auto-login)
 let jwtToken: string | null = null;
-
-// ── Types ──────────────────────────────────────────────────────────────────
 
 type MealTag = "breakfast" | "lunch" | "dinner" | "snack" | "dessert" | "drink";
 type MealSlot = "breakfast" | "lunch" | "dinner" | "snack";
-
-export interface Ingredient {
-  name: string;
-  quantity: number;
-  unit: string;
-}
-
-export interface Dish {
-  id: number;
-  name: string;
-  tags: MealTag[];
-  takeout: boolean;
-  ingredients: Ingredient[];
-  instructions: string;
-  notes: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface MenuEntry {
-  slot: MealSlot;
-  dishId: number;
-  servings: number;
-}
-
-export interface DailyMenu {
-  date: string;
-  entries: MenuEntry[];
-}
 
 export interface ShoppingItem {
   name: string;
   quantity: number;
   unit: string;
 }
-
-// ── HTTP helpers ───────────────────────────────────────────────────────────
-
-function baseUrl(): string {
-  return API_BASE_URL.replace(/\/$/, "");
-}
-
-async function apiFetch(
-  path: string,
-  options: RequestInit & { requiresAuth?: boolean } = {}
-): Promise<unknown> {
-  const { requiresAuth = true, ...fetchOptions } = options;
-
-  const headers: Record<string, string> = {
-    "Content-Type": "application/json",
-    ...(fetchOptions.headers as Record<string, string> | undefined),
-  };
-
-  if (requiresAuth) {
-    if (!jwtToken) {
-      throw new Error("Not authenticated. Call auth_login first.");
-    }
-    headers["Authorization"] = `Bearer ${jwtToken}`;
-  }
-
-  const url = `${baseUrl()}${path}`;
-  const response = await fetch(url, { ...fetchOptions, headers });
-
-  const text = await response.text();
-  let body: unknown;
-  try {
-    body = JSON.parse(text);
-  } catch {
-    body = text;
-  }
-
-  if (!response.ok) {
-    const message =
-      typeof body === "object" && body !== null && "error" in body
-        ? (body as { error: string }).error
-        : text || `HTTP ${response.status}`;
-    throw new Error(`API error ${response.status}: ${message}`);
-  }
-
-  return body;
-}
-
-// ── Shopping list aggregation (replicates frontend logic) ──────────────────
 
 export function aggregateShoppingList(
   menu: DailyMenu,
@@ -124,15 +48,22 @@ export function aggregateShoppingList(
   );
 }
 
-// ── MCP server factory ─────────────────────────────────────────────────────
+function requireAuth(): void {
+  if (!jwtToken) {
+    throw new Error("Not authenticated. Call auth_login first.");
+  }
+  const username = verifyToken(jwtToken);
+  if (!username) {
+    jwtToken = null;
+    throw new Error("Invalid or expired token. Call auth_login again.");
+  }
+}
 
 export function createMcpServer(): McpServer {
   const server = new McpServer({
     name: "food-app-mcp",
     version: "1.0.0",
   });
-
-  // ── Tool: auth_login ───────────────────────────────────────────────────────
 
   server.tool(
     "auth_login",
@@ -167,14 +98,9 @@ export function createMcpServer(): McpServer {
         };
       }
 
-      try {
-        const data = (await apiFetch("/api/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ username: user, password: pass }),
-          requiresAuth: false,
-        })) as { token: string };
-
-        jwtToken = data.token;
+      const token = login(user, pass);
+      if (token) {
+        jwtToken = token;
         return {
           content: [
             {
@@ -183,16 +109,14 @@ export function createMcpServer(): McpServer {
             },
           ],
         };
-      } catch (err) {
+      } else {
         return {
-          content: [{ type: "text", text: `Authentication failed: ${(err as Error).message}` }],
+          content: [{ type: "text", text: "Authentication failed: Invalid credentials." }],
           isError: true,
         };
       }
     }
   );
-
-  // ── Tool: list_dishes ─────────────────────────────────────────────────────
 
   server.tool(
     "list_dishes",
@@ -209,7 +133,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ tag, takeout }) => {
       try {
-        let dishes = (await apiFetch("/api/dishes")) as Dish[];
+        requireAuth();
+        let dishes = listDishes();
 
         if (tag !== undefined) {
           dishes = dishes.filter((d) => d.tags.includes(tag));
@@ -229,8 +154,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: create_dish ─────────────────────────────────────────────────────
 
   const ingredientSchema = z.object({
     name: z.string().describe("Ingredient name."),
@@ -260,10 +183,16 @@ export function createMcpServer(): McpServer {
     },
     async (params) => {
       try {
-        const dish = (await apiFetch("/api/dishes", {
-          method: "POST",
-          body: JSON.stringify(params),
-        })) as Dish;
+        requireAuth();
+        const dishData: DishData = {
+          name: params.name,
+          tags: params.tags,
+          takeout: params.takeout,
+          ingredients: params.ingredients,
+          instructions: params.instructions,
+          notes: params.notes,
+        };
+        const dish = createDish(dishData);
 
         return {
           content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
@@ -276,8 +205,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: update_dish ─────────────────────────────────────────────────────
 
   server.tool(
     "update_dish",
@@ -296,10 +223,23 @@ export function createMcpServer(): McpServer {
     },
     async ({ id, ...rest }) => {
       try {
-        const dish = (await apiFetch(`/api/dishes/${id}`, {
-          method: "PUT",
-          body: JSON.stringify(rest),
-        })) as Dish;
+        requireAuth();
+        const dishData: DishData = {
+          name: rest.name,
+          tags: rest.tags,
+          takeout: rest.takeout,
+          ingredients: rest.ingredients,
+          instructions: rest.instructions,
+          notes: rest.notes,
+        };
+        const dish = updateDish(id, dishData);
+
+        if (!dish) {
+          return {
+            content: [{ type: "text", text: `Dish ${id} not found.` }],
+            isError: true,
+          };
+        }
 
         return {
           content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
@@ -313,8 +253,6 @@ export function createMcpServer(): McpServer {
     }
   );
 
-  // ── Tool: delete_dish ─────────────────────────────────────────────────────
-
   server.tool(
     "delete_dish",
     "Delete a dish by ID.",
@@ -323,9 +261,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ id }) => {
       try {
-        const result = (await apiFetch(`/api/dishes/${id}`, {
-          method: "DELETE",
-        })) as { success: boolean };
+        requireAuth();
+        const result = deleteDish(id);
 
         return {
           content: [
@@ -340,8 +277,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: import_dishes ───────────────────────────────────────────────────
 
   server.tool(
     "import_dishes",
@@ -364,10 +299,23 @@ export function createMcpServer(): McpServer {
     },
     async ({ dishes }) => {
       try {
-        const result = (await apiFetch("/api/dishes/import", {
-          method: "POST",
-          body: JSON.stringify(dishes),
-        })) as { imported: number };
+        requireAuth();
+        const dishData: DishData[] = dishes.map((d) => ({
+          name: d.name,
+          tags: d.tags,
+          takeout: d.takeout,
+          ingredients: d.ingredients,
+          instructions: d.instructions,
+          notes: d.notes,
+        }));
+        const result = importDishes(dishData);
+
+        if ('error' in result) {
+          return {
+            content: [{ type: "text", text: `Import failed: ${result.error}. Duplicates: ${result.duplicates.join(", ")}` }],
+            isError: true,
+          };
+        }
 
         return {
           content: [{ type: "text", text: `Successfully imported ${result.imported} dish(es).` }],
@@ -381,8 +329,6 @@ export function createMcpServer(): McpServer {
     }
   );
 
-  // ── Tool: get_menu ───────────────────────────────────────────────────────
-
   server.tool(
     "get_menu",
     "Get the menu for a specific date. Returns an empty entries array if no menu has been set for that date.",
@@ -394,7 +340,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ date }) => {
       try {
-        const menu = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+        requireAuth();
+        const menu = getMenu(date);
         return {
           content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
         };
@@ -406,8 +353,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: set_menu ───────────────────────────────────────────────────────
 
   server.tool(
     "set_menu",
@@ -429,10 +374,8 @@ export function createMcpServer(): McpServer {
     },
     async ({ date, entries }) => {
       try {
-        const menu = (await apiFetch(`/api/menus/${date}`, {
-          method: "PUT",
-          body: JSON.stringify({ entries }),
-        })) as DailyMenu;
+        requireAuth();
+        const menu = setMenu(date, entries);
 
         return {
           content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
@@ -445,8 +388,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: add_dish_to_menu ───────────────────────────────────────────────
 
   server.tool(
     "add_dish_to_menu",
@@ -464,15 +405,13 @@ export function createMcpServer(): McpServer {
     },
     async ({ date, slot, dishId, servings }) => {
       try {
-        const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+        requireAuth();
+        const current = getMenu(date);
 
         const entries = current.entries.filter((e) => e.slot !== slot);
         entries.push({ slot, dishId, servings });
 
-        const menu = (await apiFetch(`/api/menus/${date}`, {
-          method: "PUT",
-          body: JSON.stringify({ entries }),
-        })) as DailyMenu;
+        const menu = setMenu(date, entries);
 
         return {
           content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
@@ -485,8 +424,6 @@ export function createMcpServer(): McpServer {
       }
     }
   );
-
-  // ── Tool: remove_dish_from_menu ────────────────────────────────────────────
 
   server.tool(
     "remove_dish_from_menu",
@@ -502,13 +439,11 @@ export function createMcpServer(): McpServer {
     },
     async ({ date, slot }) => {
       try {
-        const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+        requireAuth();
+        const current = getMenu(date);
         const entries = current.entries.filter((e) => e.slot !== slot);
 
-        const menu = (await apiFetch(`/api/menus/${date}`, {
-          method: "PUT",
-          body: JSON.stringify({ entries }),
-        })) as DailyMenu;
+        const menu = setMenu(date, entries);
 
         return {
           content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
@@ -522,8 +457,6 @@ export function createMcpServer(): McpServer {
     }
   );
 
-  // ── Tool: get_shopping_list ────────────────────────────────────────────────
-
   server.tool(
     "get_shopping_list",
     "Generate a shopping list for a given date by aggregating ingredients from all non-takeout dishes in the menu. Quantities are scaled by servings and merged for duplicate ingredients (case-insensitive name + unit key). Takeout dishes are excluded.",
@@ -535,10 +468,9 @@ export function createMcpServer(): McpServer {
     },
     async ({ date }) => {
       try {
-        const [menu, allDishes] = await Promise.all([
-          apiFetch(`/api/menus/${date}`) as Promise<DailyMenu>,
-          apiFetch("/api/dishes") as Promise<Dish[]>,
-        ]);
+        requireAuth();
+        const menu = getMenu(date);
+        const allDishes = listDishes();
 
         if (menu.entries.length === 0) {
           return {
@@ -575,21 +507,17 @@ export function createMcpServer(): McpServer {
   return server;
 }
 
-// ── Stdio entry point ──────────────────────────────────────────────────────
+export const server = createMcpServer();
 
 export async function startMcpServer(): Promise<void> {
   if (AUTH_EMAIL && AUTH_PASSWORD && !jwtToken) {
-    try {
-      const data = (await apiFetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ username: AUTH_EMAIL, password: AUTH_PASSWORD }),
-        requiresAuth: false,
-      })) as { token: string };
-      jwtToken = data.token;
+    const token = login(AUTH_EMAIL, AUTH_PASSWORD);
+    if (token) {
+      jwtToken = token;
       process.stderr.write("Auto-login successful.\n");
-    } catch (err) {
+    } else {
       process.stderr.write(
-        `Auto-login failed: ${(err as Error).message}. Use the auth_login tool to authenticate manually.\n`
+        `Auto-login failed: Invalid credentials. Use the auth_login tool to authenticate manually.\n`
       );
     }
   }
