@@ -1,6 +1,7 @@
 {
   "name": "food-app-e2e",
   "private": true,
+  "type": "module",
   "scripts": {
     "test": "playwright test",
     "test:ui": "playwright test --ui",
@@ -8,5 +9,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.44.0"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0"
   }
 }

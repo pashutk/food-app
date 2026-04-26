@@ -7,18 +7,19 @@
  * - Auth: JWT stored in MCP server state (via auth_login tool)
  * - Session: Stateful with UUID session IDs for multiple concurrent clients
  *
- * This enables Claude Code (running as a separate process) to connect to the
- * Express backend via HTTP instead of stdio.
+ * Each session gets its own McpServer instance (via createMcpServer factory)
+ * to avoid the "Already connected to a transport" error from shared instances.
  */
 
 import { Router, Request, Response } from 'express';
-import { StreamableHTTPServerTransport } from '/opt/data/food-app/backend/node_modules/@modelcontextprotocol/sdk/dist/esm/server/streamableHttp.js';
-import { server } from '../mcp-server';
+import { StreamableHTTPServerTransport } from '/opt/data/projects/food-app/backend/node_modules/@modelcontextprotocol/sdk/dist/esm/server/streamableHttp.js';
+import { createMcpServer } from '../mcp-server';
 
 export const mcpRouter = Router();
 
-// Track active transports for cleanup
+// Track active transports and servers per session
 const activeTransports = new Map<string, StreamableHTTPServerTransport>();
+const activeServers = new Map<string, ReturnType<typeof createMcpServer>>();
 
 // Auto-login flag - set by startMcpHttpServer
 let autoLoginPromise: Promise<void> | null = null;
@@ -46,30 +47,23 @@ function createTransport(sessionId: string): StreamableHTTPServerTransport {
  */
 mcpRouter.post('/mcp', async (req: Request, res: Response) => {
   try {
-    // For stateful mode, we need to extract or generate session ID
-    // The StreamableHTTPServerTransport handles this internally
-    // but we need to ensure a transport exists for the session
-
-    // Check for session ID header or generate one
     let sessionId = req.headers['mcp-session-id'] as string | undefined;
 
     if (!sessionId) {
-      // Generate a new session ID for stateful mode
       sessionId = crypto.randomUUID();
     }
 
     let transport = activeTransports.get(sessionId);
+    let sessionServer = activeServers.get(sessionId);
 
     if (!transport) {
-      // Create new transport for this session
       transport = createTransport(sessionId);
-      await server.connect(transport);
+      sessionServer = createMcpServer();
+      activeServers.set(sessionId, sessionServer);
+      await sessionServer.connect(transport);
     }
 
-    // Set the session ID header in response
     res.setHeader('MCP-Session-Id', sessionId);
-
-    // Handle the request - the transport processes JSON-RPC messages
     await transport.handleRequest(req, res, req.body);
   } catch (error) {
     console.error('MCP POST error:', error);
@@ -94,22 +88,20 @@ mcpRouter.get('/mcp', async (req: Request, res: Response) => {
     let sessionId = req.headers['mcp-session-id'] as string | undefined;
 
     if (!sessionId) {
-      // Generate a new session ID for stateful mode
       sessionId = crypto.randomUUID();
     }
 
     let transport = activeTransports.get(sessionId);
+    let sessionServer = activeServers.get(sessionId);
 
     if (!transport) {
-      // Create new transport for this session
       transport = createTransport(sessionId);
-      await server.connect(transport);
+      sessionServer = createMcpServer();
+      activeServers.set(sessionId, sessionServer);
+      await sessionServer.connect(transport);
     }
 
-    // Set the session ID header in response
     res.setHeader('MCP-Session-Id', sessionId);
-
-    // Handle GET request (SSE stream)
     await transport.handleRequest(req, res);
   } catch (error) {
     console.error('MCP GET error:', error);
@@ -134,6 +126,7 @@ mcpRouter.delete('/mcp', async (req: Request, res: Response) => {
       await transport.close();
       activeTransports.delete(sessionId);
     }
+    activeServers.delete(sessionId);
   }
 
   res.status(204).send();
@@ -150,9 +143,6 @@ export async function startMcpHttpServer(): Promise<void> {
   }
 
   autoLoginPromise = (async () => {
-    // In HTTP mode, we don't auto-login here because each request
-    // is handled independently. The auth_login tool handles authentication.
-    // This function is here for future extensibility if needed.
     console.log('MCP HTTP server initialized');
   })();
 
@@ -168,4 +158,5 @@ export async function closeAllMcpTransports(): Promise<void> {
   );
   await Promise.all(closePromises);
   activeTransports.clear();
+  activeServers.clear();
 }

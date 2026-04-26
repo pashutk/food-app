@@ -3,8 +3,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 
 const API_BASE_URL = process.env.API_BASE_URL ?? "http://localhost:3000";
-const AUTH_EMAIL = process.env.AUTH_EMAIL;
-const AUTH_PASSWORD = process.env.AUTH_PASSWORD;
+const AUTH_EMAIL=process.env.AUTH_EMAIL!;
+const AUTH_PASSWORD=process.env.AUTH_PASSWORD!;
 
 // Stored JWT token (populated on first auth_login or auto-login)
 let jwtToken: string | null = null;
@@ -124,455 +124,458 @@ export function aggregateShoppingList(
   );
 }
 
-// ── MCP server setup ───────────────────────────────────────────────────────
+// ── MCP server factory ─────────────────────────────────────────────────────
 
-const server = new McpServer({
-  name: "food-app-mcp",
-  version: "1.0.0",
-});
+export function createMcpServer(): McpServer {
+  const server = new McpServer({
+    name: "food-app-mcp",
+    version: "1.0.0",
+  });
 
-// ── Tool: auth_login ───────────────────────────────────────────────────────
+  // ── Tool: auth_login ───────────────────────────────────────────────────────
 
-server.tool(
-  "auth_login",
-  "Authenticate with the food-app and obtain a JWT token. The token is stored internally and used for all subsequent requests. Uses AUTH_EMAIL and AUTH_PASSWORD env vars if username/password are omitted.",
-  {
-    username: z
-      .string()
-      .optional()
-      .describe(
-        "Username to authenticate with. Falls back to AUTH_EMAIL env var."
-      ),
-    password: z
-      .string()
-      .optional()
-      .describe(
-        "Password to authenticate with. Falls back to AUTH_PASSWORD env var."
-      ),
-  },
-  async ({ username, password }) => {
-    const user = username ?? AUTH_EMAIL;
-    const pass = password ?? AUTH_PASSWORD;
+  server.tool(
+    "auth_login",
+    "Authenticate with the food-app and obtain a JWT token. The token is stored internally and used for all subsequent requests. Uses AUTH_EMAIL and AUTH_PASSWORD env vars if username/password are omitted.",
+    {
+      username: z
+        .string()
+        .optional()
+        .describe(
+          "Username to authenticate with. Falls back to AUTH_EMAIL env var."
+        ),
+      password: z
+        .string()
+        .optional()
+        .describe(
+          "Password to authenticate with. Falls back to AUTH_PASSWORD env var."
+        ),
+    },
+    async ({ username, password }) => {
+      const user = username ?? AUTH_EMAIL;
+      const pass = password ?? AUTH_PASSWORD;
 
-    if (!user || !pass) {
-      return {
-        content: [
-          {
-            type: "text",
-            text: "Error: username and password are required (or set AUTH_EMAIL / AUTH_PASSWORD env vars).",
-          },
-        ],
-        isError: true,
-      };
-    }
-
-    try {
-      const data = (await apiFetch("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ username: user, password: pass }),
-        requiresAuth: false,
-      })) as { token: string };
-
-      jwtToken = data.token;
-      return {
-        content: [
-          {
-            type: "text",
-            text: `Authentication successful. JWT token stored. Token preview: ${jwtToken.slice(0, 20)}...`,
-          },
-        ],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: `Authentication failed: ${(err as Error).message}` }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: list_dishes ──────────────────────────────────────────────────────
-
-server.tool(
-  "list_dishes",
-  "List all dishes. Optionally filter by tag or takeout status.",
-  {
-    tag: z
-      .enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"])
-      .optional()
-      .describe("Filter dishes by meal tag."),
-    takeout: z
-      .boolean()
-      .optional()
-      .describe("Filter by takeout status. Omit to return all."),
-  },
-  async ({ tag, takeout }) => {
-    try {
-      let dishes = (await apiFetch("/api/dishes")) as Dish[];
-
-      if (tag !== undefined) {
-        dishes = dishes.filter((d) => d.tags.includes(tag));
-      }
-      if (takeout !== undefined) {
-        dishes = dishes.filter((d) => d.takeout === takeout);
-      }
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(dishes, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: create_dish ──────────────────────────────────────────────────────
-
-const ingredientSchema = z.object({
-  name: z.string().describe("Ingredient name."),
-  quantity: z.number().describe("Quantity."),
-  unit: z.string().describe("Unit of measurement (e.g. g, ml, count)."),
-});
-
-server.tool(
-  "create_dish",
-  "Create a new dish.",
-  {
-    name: z.string().describe("Name of the dish."),
-    tags: z
-      .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
-      .optional()
-      .describe("Meal tags for this dish."),
-    takeout: z
-      .boolean()
-      .optional()
-      .describe("Whether this is a takeout dish (ingredients excluded from shopping list)."),
-    ingredients: z
-      .array(ingredientSchema)
-      .optional()
-      .describe("List of ingredients."),
-    instructions: z.string().optional().describe("Cooking instructions."),
-    notes: z.string().optional().describe("Additional notes."),
-  },
-  async (params) => {
-    try {
-      const dish = (await apiFetch("/api/dishes", {
-        method: "POST",
-        body: JSON.stringify(params),
-      })) as Dish;
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: update_dish ──────────────────────────────────────────────────────
-
-server.tool(
-  "update_dish",
-  "Update an existing dish by ID.",
-  {
-    id: z.number().describe("Dish ID to update."),
-    name: z.string().describe("New name for the dish."),
-    tags: z
-      .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
-      .optional()
-      .describe("Meal tags."),
-    takeout: z.boolean().optional().describe("Takeout status."),
-    ingredients: z.array(ingredientSchema).optional().describe("Ingredients."),
-    instructions: z.string().optional().describe("Cooking instructions."),
-    notes: z.string().optional().describe("Additional notes."),
-  },
-  async ({ id, ...rest }) => {
-    try {
-      const dish = (await apiFetch(`/api/dishes/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(rest),
-      })) as Dish;
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: delete_dish ──────────────────────────────────────────────────────
-
-server.tool(
-  "delete_dish",
-  "Delete a dish by ID.",
-  {
-    id: z.number().describe("Dish ID to delete."),
-  },
-  async ({ id }) => {
-    try {
-      const result = (await apiFetch(`/api/dishes/${id}`, {
-        method: "DELETE",
-      })) as { success: boolean };
-
-      return {
-        content: [
-          { type: "text", text: result.success ? `Dish ${id} deleted successfully.` : `Failed to delete dish ${id}.` },
-        ],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: import_dishes ────────────────────────────────────────────────────
-
-server.tool(
-  "import_dishes",
-  "Bulk import dishes from a JSON array. The entire import is transactional — it fails if any dish name already exists (case-insensitive).",
-  {
-    dishes: z
-      .array(
-        z.object({
-          name: z.string(),
-          tags: z
-            .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
-            .optional(),
-          takeout: z.boolean().optional(),
-          ingredients: z.array(ingredientSchema).optional(),
-          instructions: z.string().optional(),
-          notes: z.string().optional(),
-        })
-      )
-      .describe("Array of dish objects to import."),
-  },
-  async ({ dishes }) => {
-    try {
-      const result = (await apiFetch("/api/dishes/import", {
-        method: "POST",
-        body: JSON.stringify(dishes),
-      })) as { imported: number };
-
-      return {
-        content: [{ type: "text", text: `Successfully imported ${result.imported} dish(es).` }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: get_menu ─────────────────────────────────────────────────────────
-
-server.tool(
-  "get_menu",
-  "Get the menu for a specific date. Returns an empty entries array if no menu has been set for that date.",
-  {
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe("Date in YYYY-MM-DD format."),
-  },
-  async ({ date }) => {
-    try {
-      const menu = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
-      return {
-        content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: set_menu ─────────────────────────────────────────────────────────
-
-server.tool(
-  "set_menu",
-  "Set (replace) the entire menu for a date. This overwrites any existing menu entries for that date.",
-  {
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe("Date in YYYY-MM-DD format."),
-    entries: z
-      .array(
-        z.object({
-          slot: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Meal slot."),
-          dishId: z.number().describe("ID of the dish."),
-          servings: z.number().positive().describe("Number of servings."),
-        })
-      )
-      .describe("Menu entries to set."),
-  },
-  async ({ date, entries }) => {
-    try {
-      const menu = (await apiFetch(`/api/menus/${date}`, {
-        method: "PUT",
-        body: JSON.stringify({ entries }),
-      })) as DailyMenu;
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: add_dish_to_menu ─────────────────────────────────────────────────
-
-server.tool(
-  "add_dish_to_menu",
-  "Add a dish to a specific meal slot on a date. If a dish already exists in that slot it is replaced.",
-  {
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe("Date in YYYY-MM-DD format."),
-    slot: z
-      .enum(["breakfast", "lunch", "dinner", "snack"])
-      .describe("Meal slot to add the dish to."),
-    dishId: z.number().describe("ID of the dish to add."),
-    servings: z.number().positive().default(1).describe("Number of servings (default: 1)."),
-  },
-  async ({ date, slot, dishId, servings }) => {
-    try {
-      const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
-
-      // Replace existing entry for the same slot, or append
-      const entries = current.entries.filter((e) => e.slot !== slot);
-      entries.push({ slot, dishId, servings });
-
-      const menu = (await apiFetch(`/api/menus/${date}`, {
-        method: "PUT",
-        body: JSON.stringify({ entries }),
-      })) as DailyMenu;
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: remove_dish_from_menu ────────────────────────────────────────────
-
-server.tool(
-  "remove_dish_from_menu",
-  "Remove a dish from a specific meal slot on a date.",
-  {
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe("Date in YYYY-MM-DD format."),
-    slot: z
-      .enum(["breakfast", "lunch", "dinner", "snack"])
-      .describe("Meal slot to remove the dish from."),
-  },
-  async ({ date, slot }) => {
-    try {
-      const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
-      const entries = current.entries.filter((e) => e.slot !== slot);
-
-      const menu = (await apiFetch(`/api/menus/${date}`, {
-        method: "PUT",
-        body: JSON.stringify({ entries }),
-      })) as DailyMenu;
-
-      return {
-        content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
-
-// ── Tool: get_shopping_list ────────────────────────────────────────────────
-
-server.tool(
-  "get_shopping_list",
-  "Generate a shopping list for a given date by aggregating ingredients from all non-takeout dishes in the menu. Quantities are scaled by servings and merged for duplicate ingredients (case-insensitive name + unit key). Takeout dishes are excluded.",
-  {
-    date: z
-      .string()
-      .regex(/^\d{4}-\d{2}-\d{2}$/)
-      .describe("Date in YYYY-MM-DD format."),
-  },
-  async ({ date }) => {
-    try {
-      const [menu, allDishes] = await Promise.all([
-        apiFetch(`/api/menus/${date}`) as Promise<DailyMenu>,
-        apiFetch("/api/dishes") as Promise<Dish[]>,
-      ]);
-
-      if (menu.entries.length === 0) {
-        return {
-          content: [{ type: "text", text: `No menu entries found for ${date}. Shopping list is empty.` }],
-        };
-      }
-
-      const dishMap = new Map<number, Dish>(allDishes.map((d) => [d.id, d]));
-      const shoppingList = aggregateShoppingList(menu, dishMap);
-
-      if (shoppingList.length === 0) {
+      if (!user || !pass) {
         return {
           content: [
             {
               type: "text",
-              text: `All dishes on ${date} are takeout — no ingredients to shop for.`,
+              text: "Error: username and password are required (or set AUTH_EMAIL / AUTH_PASSWORD env vars).",
             },
           ],
+          isError: true,
         };
       }
 
-      return {
-        content: [{ type: "text", text: JSON.stringify(shoppingList, null, 2) }],
-      };
-    } catch (err) {
-      return {
-        content: [{ type: "text", text: (err as Error).message }],
-        isError: true,
-      };
-    }
-  }
-);
+      try {
+        const data = (await apiFetch("/api/auth/login", {
+          method: "POST",
+          body: JSON.stringify({ username: user, password: pass }),
+          requiresAuth: false,
+        })) as { token: string };
 
-// ── Exported entry point ────────────────────────────────────────────────────
+        jwtToken = data.token;
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Authentication successful. JWT token stored. Token preview: ${jwtToken.slice(0, 20)}...`,
+            },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: `Authentication failed: ${(err as Error).message}` }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: list_dishes ─────────────────────────────────────────────────────
+
+  server.tool(
+    "list_dishes",
+    "List all dishes. Optionally filter by tag or takeout status.",
+    {
+      tag: z
+        .enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"])
+        .optional()
+        .describe("Filter dishes by meal tag."),
+      takeout: z
+        .boolean()
+        .optional()
+        .describe("Filter by takeout status. Omit to return all."),
+    },
+    async ({ tag, takeout }) => {
+      try {
+        let dishes = (await apiFetch("/api/dishes")) as Dish[];
+
+        if (tag !== undefined) {
+          dishes = dishes.filter((d) => d.tags.includes(tag));
+        }
+        if (takeout !== undefined) {
+          dishes = dishes.filter((d) => d.takeout === takeout);
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(dishes, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: create_dish ─────────────────────────────────────────────────────
+
+  const ingredientSchema = z.object({
+    name: z.string().describe("Ingredient name."),
+    quantity: z.number().describe("Quantity."),
+    unit: z.string().describe("Unit of measurement (e.g. g, ml, count)."),
+  });
+
+  server.tool(
+    "create_dish",
+    "Create a new dish.",
+    {
+      name: z.string().describe("Name of the dish."),
+      tags: z
+        .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
+        .optional()
+        .describe("Meal tags for this dish."),
+      takeout: z
+        .boolean()
+        .optional()
+        .describe("Whether this is a takeout dish (ingredients excluded from shopping list)."),
+      ingredients: z
+        .array(ingredientSchema)
+        .optional()
+        .describe("List of ingredients."),
+      instructions: z.string().optional().describe("Cooking instructions."),
+      notes: z.string().optional().describe("Additional notes."),
+    },
+    async (params) => {
+      try {
+        const dish = (await apiFetch("/api/dishes", {
+          method: "POST",
+          body: JSON.stringify(params),
+        })) as Dish;
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: update_dish ─────────────────────────────────────────────────────
+
+  server.tool(
+    "update_dish",
+    "Update an existing dish by ID.",
+    {
+      id: z.number().describe("Dish ID to update."),
+      name: z.string().describe("New name for the dish."),
+      tags: z
+        .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
+        .optional()
+        .describe("Meal tags."),
+      takeout: z.boolean().optional().describe("Takeout status."),
+      ingredients: z.array(ingredientSchema).optional().describe("Ingredients."),
+      instructions: z.string().optional().describe("Cooking instructions."),
+      notes: z.string().optional().describe("Additional notes."),
+    },
+    async ({ id, ...rest }) => {
+      try {
+        const dish = (await apiFetch(`/api/dishes/${id}`, {
+          method: "PUT",
+          body: JSON.stringify(rest),
+        })) as Dish;
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(dish, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: delete_dish ─────────────────────────────────────────────────────
+
+  server.tool(
+    "delete_dish",
+    "Delete a dish by ID.",
+    {
+      id: z.number().describe("Dish ID to delete."),
+    },
+    async ({ id }) => {
+      try {
+        const result = (await apiFetch(`/api/dishes/${id}`, {
+          method: "DELETE",
+        })) as { success: boolean };
+
+        return {
+          content: [
+            { type: "text", text: result.success ? `Dish ${id} deleted successfully.` : `Failed to delete dish ${id}.` },
+          ],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: import_dishes ───────────────────────────────────────────────────
+
+  server.tool(
+    "import_dishes",
+    "Bulk import dishes from a JSON array. The entire import is transactional — it fails if any dish name already exists (case-insensitive).",
+    {
+      dishes: z
+        .array(
+          z.object({
+            name: z.string(),
+            tags: z
+              .array(z.enum(["breakfast", "lunch", "dinner", "snack", "dessert", "drink"]))
+              .optional(),
+            takeout: z.boolean().optional(),
+            ingredients: z.array(ingredientSchema).optional(),
+            instructions: z.string().optional(),
+            notes: z.string().optional(),
+          })
+        )
+        .describe("Array of dish objects to import."),
+    },
+    async ({ dishes }) => {
+      try {
+        const result = (await apiFetch("/api/dishes/import", {
+          method: "POST",
+          body: JSON.stringify(dishes),
+        })) as { imported: number };
+
+        return {
+          content: [{ type: "text", text: `Successfully imported ${result.imported} dish(es).` }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: get_menu ───────────────────────────────────────────────────────
+
+  server.tool(
+    "get_menu",
+    "Get the menu for a specific date. Returns an empty entries array if no menu has been set for that date.",
+    {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .describe("Date in YYYY-MM-DD format."),
+    },
+    async ({ date }) => {
+      try {
+        const menu = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+        return {
+          content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: set_menu ───────────────────────────────────────────────────────
+
+  server.tool(
+    "set_menu",
+    "Set (replace) the entire menu for a date. This overwrites any existing menu entries for that date.",
+    {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .describe("Date in YYYY-MM-DD format."),
+      entries: z
+        .array(
+          z.object({
+            slot: z.enum(["breakfast", "lunch", "dinner", "snack"]).describe("Meal slot."),
+            dishId: z.number().describe("ID of the dish."),
+            servings: z.number().positive().describe("Number of servings."),
+          })
+        )
+        .describe("Menu entries to set."),
+    },
+    async ({ date, entries }) => {
+      try {
+        const menu = (await apiFetch(`/api/menus/${date}`, {
+          method: "PUT",
+          body: JSON.stringify({ entries }),
+        })) as DailyMenu;
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: add_dish_to_menu ───────────────────────────────────────────────
+
+  server.tool(
+    "add_dish_to_menu",
+    "Add a dish to a specific meal slot on a date. If a dish already exists in that slot it is replaced.",
+    {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .describe("Date in YYYY-MM-DD format."),
+      slot: z
+        .enum(["breakfast", "lunch", "dinner", "snack"])
+        .describe("Meal slot to add the dish to."),
+      dishId: z.number().describe("ID of the dish to add."),
+      servings: z.number().positive().default(1).describe("Number of servings (default: 1)."),
+    },
+    async ({ date, slot, dishId, servings }) => {
+      try {
+        const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+
+        const entries = current.entries.filter((e) => e.slot !== slot);
+        entries.push({ slot, dishId, servings });
+
+        const menu = (await apiFetch(`/api/menus/${date}`, {
+          method: "PUT",
+          body: JSON.stringify({ entries }),
+        })) as DailyMenu;
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: remove_dish_from_menu ────────────────────────────────────────────
+
+  server.tool(
+    "remove_dish_from_menu",
+    "Remove a dish from a specific meal slot on a date.",
+    {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .describe("Date in YYYY-MM-DD format."),
+      slot: z
+        .enum(["breakfast", "lunch", "dinner", "snack"])
+        .describe("Meal slot to remove the dish from."),
+    },
+    async ({ date, slot }) => {
+      try {
+        const current = (await apiFetch(`/api/menus/${date}`)) as DailyMenu;
+        const entries = current.entries.filter((e) => e.slot !== slot);
+
+        const menu = (await apiFetch(`/api/menus/${date}`, {
+          method: "PUT",
+          body: JSON.stringify({ entries }),
+        })) as DailyMenu;
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(menu, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  // ── Tool: get_shopping_list ────────────────────────────────────────────────
+
+  server.tool(
+    "get_shopping_list",
+    "Generate a shopping list for a given date by aggregating ingredients from all non-takeout dishes in the menu. Quantities are scaled by servings and merged for duplicate ingredients (case-insensitive name + unit key). Takeout dishes are excluded.",
+    {
+      date: z
+        .string()
+        .regex(/^\d{4}-\d{2}-\d{2}$/)
+        .describe("Date in YYYY-MM-DD format."),
+    },
+    async ({ date }) => {
+      try {
+        const [menu, allDishes] = await Promise.all([
+          apiFetch(`/api/menus/${date}`) as Promise<DailyMenu>,
+          apiFetch("/api/dishes") as Promise<Dish[]>,
+        ]);
+
+        if (menu.entries.length === 0) {
+          return {
+            content: [{ type: "text", text: `No menu entries found for ${date}. Shopping list is empty.` }],
+          };
+        }
+
+        const dishMap = new Map<number, Dish>(allDishes.map((d) => [d.id, d]));
+        const shoppingList = aggregateShoppingList(menu, dishMap);
+
+        if (shoppingList.length === 0) {
+          return {
+            content: [
+              {
+                type: "text",
+                text: `All dishes on ${date} are takeout — no ingredients to shop for.`,
+              },
+            ],
+          };
+        }
+
+        return {
+          content: [{ type: "text", text: JSON.stringify(shoppingList, null, 2) }],
+        };
+      } catch (err) {
+        return {
+          content: [{ type: "text", text: (err as Error).message }],
+          isError: true,
+        };
+      }
+    }
+  );
+
+  return server;
+}
+
+// ── Stdio entry point ──────────────────────────────────────────────────────
 
 export async function startMcpServer(): Promise<void> {
   if (AUTH_EMAIL && AUTH_PASSWORD && !jwtToken) {
@@ -592,10 +595,7 @@ export async function startMcpServer(): Promise<void> {
   }
 
   const transport = new StdioServerTransport();
-  await server.connect(transport);
+  const srv = createMcpServer();
+  await srv.connect(transport);
   process.stderr.write("food-app MCP server running on stdio.\n");
 }
-
-// ── HTTP Server Export ──────────────────────────────────────────────────────
-
-export { server };
