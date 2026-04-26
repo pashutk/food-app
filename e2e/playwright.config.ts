@@ -9,7 +9,7 @@ const password = process.env.E2E_PASSWORD ?? 'testpass';
 
 const webServer = [
   {
-    command: `PORT=3001 DB_PATH=./data/test.db AUTH_USERNAME=${username} AUTH_PASSWORD=${password} JWT_SECRET=test-e2e-secret npm run dev`,
+    command: `PORT=3001 DB_PATH=./data/test.db AUTH_USERNAME=${username} AUTH_PASSWORD=${password} JWT_SECRET=${process.env.JWT_SECRET ?? 'test-secret-32chars-minimum'} npm run dev`,
     cwd: path.resolve(__dirname, '../backend'),
     port: 3001,
     reuseExistingServer: true,

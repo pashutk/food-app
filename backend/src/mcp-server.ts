@@ -7,7 +7,7 @@ import { listDishes, createDish, updateDish, deleteDish, importDishes, type Dish
 export type { DailyMenu } from './services/menus';
 export type { Dish } from './routes/dishes';
 
-const AUTH_EMAIL = process.env.AUTH_EMAIL!;
+const AUTH_USERNAME = process.env.AUTH_USERNAME!;
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD!;
 
 let jwtToken: string | null = null;
@@ -67,13 +67,13 @@ export function createMcpServer(): McpServer {
 
   server.tool(
     "auth_login",
-    "Authenticate with the food-app and obtain a JWT token. The token is stored internally and used for all subsequent requests. Uses AUTH_EMAIL and AUTH_PASSWORD env vars if username/password are omitted.",
+    "Authenticate with the food-app and obtain a JWT token. The token is stored internally and used for all subsequent requests. Uses AUTH_USERNAME and AUTH_PASSWORD env vars if username/password are omitted.",
     {
       username: z
         .string()
         .optional()
         .describe(
-          "Username to authenticate with. Falls back to AUTH_EMAIL env var."
+          "Username to authenticate with. Falls back to AUTH_USERNAME env var."
         ),
       password: z
         .string()
@@ -83,7 +83,7 @@ export function createMcpServer(): McpServer {
         ),
     },
     async ({ username, password }) => {
-      const user = username ?? AUTH_EMAIL;
+      const user = username ?? AUTH_USERNAME;
       const pass = password ?? AUTH_PASSWORD;
 
       if (!user || !pass) {
@@ -91,7 +91,7 @@ export function createMcpServer(): McpServer {
           content: [
             {
               type: "text",
-              text: "Error: username and password are required (or set AUTH_EMAIL / AUTH_PASSWORD env vars).",
+              text: "Error: username and password are required (or set AUTH_USERNAME / AUTH_PASSWORD env vars).",
             },
           ],
           isError: true,
@@ -510,8 +510,8 @@ export function createMcpServer(): McpServer {
 export const server = createMcpServer();
 
 export async function startMcpServer(): Promise<void> {
-  if (AUTH_EMAIL && AUTH_PASSWORD && !jwtToken) {
-    const token = login(AUTH_EMAIL, AUTH_PASSWORD);
+  if (AUTH_USERNAME && AUTH_PASSWORD && !jwtToken) {
+    const token = login(AUTH_USERNAME, AUTH_PASSWORD);
     if (token) {
       jwtToken = token;
       process.stderr.write("Auto-login successful.\n");

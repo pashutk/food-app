@@ -88,3 +88,36 @@ cd frontend
 npm install
 npm run dev            # starts on :5173, proxies /api to :3000
 ```
+
+## MCP Server
+
+The food-app exposes an MCP (Model Context Protocol) server that tools like Hermes Agent can use to interact with your menu and dish data.
+
+### How to connect
+
+Configure the MCP server in your `config.yaml`:
+
+```yaml
+mcp_servers:
+  food-app:
+    url: http://localhost:3000/mcp
+    headers:
+      Authorization: Bearer <your-jwt-token>
+```
+
+Or for stdio mode (runs the MCP server as a subprocess):
+
+```sh
+cd backend
+AUTH_USERNAME=<your-username> AUTH_PASSWORD=<your-password> npx tsx src/mcp-server.ts
+```
+
+### Available tools
+
+- `auth_login` — authenticate and obtain JWT token
+- `get_menu` — retrieve menu for a date range
+- `set_menu` — assign a dish to a meal slot
+- `list_dishes` / `create_dish` / `update_dish` / `delete_dish` — CRUD on dishes
+- `import_dishes` — bulk import dishes from JSON
+- `aggregate_shopping_list` — compute shopping list from a menu
+```
