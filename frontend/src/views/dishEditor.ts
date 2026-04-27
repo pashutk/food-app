@@ -42,7 +42,9 @@ export async function renderDishEditor(
           notes: dish.notes,
         };
       }
-    } catch { /* ignore */ }
+    } catch (e) {
+      error = 'Failed to load dish. Please try again.';
+    }
   }
 
   function render() {
