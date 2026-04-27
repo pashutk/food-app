@@ -18,7 +18,7 @@ import { describe, expect, it, afterEach, beforeEach } from 'vitest';
 import express, { Express } from 'express';
 import cors from 'cors';
 import { Server } from 'http';
-import { StreamableHTTPServerTransport } from '/opt/data/projects/food-app/backend/node_modules/@modelcontextprotocol/sdk/dist/esm/server/streamableHttp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
 import { server } from './mcp-server';
 
 process.env.AUTH_USERNAME = 'test@example.com';

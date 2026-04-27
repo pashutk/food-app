@@ -12,7 +12,7 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { StreamableHTTPServerTransport } from '/opt/data/projects/food-app/backend/node_modules/@modelcontextprotocol/sdk/dist/esm/server/streamableHttp.js';
+import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp';
 import { createMcpServer } from '../mcp-server';
 
 export const mcpRouter = Router();
@@ -154,7 +154,7 @@ export async function startMcpHttpServer(): Promise<void> {
  */
 export async function closeAllMcpTransports(): Promise<void> {
   const closePromises = Array.from(activeTransports.values()).map((t) =>
-    t.close().catch((e) => console.error('Error closing transport:', e))
+    t.close().catch((e: unknown) => console.error('Error closing transport:', e))
   );
   await Promise.all(closePromises);
   activeTransports.clear();
