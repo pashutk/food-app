@@ -69,23 +69,16 @@ test.describe.serial('dish CRUD', () => {
       return btn && !btn.disabled;
     }, { timeout: 10000 });
 
-    // The edit modal calls location.hash = '#library' on success, which renders the library
-    // (empty first, then async load() fetches dishes). Wait for the dish card to appear.
-    // If save fails, the modal stays open with an error div; poll and check for that.
-    let savedSuccessfully = false;
-    for (let i = 0; i < 20; i++) {
-      await page.waitForTimeout(500);
-      const cardCount = await page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")').count();
-      if (cardCount > 0) { savedSuccessfully = true; break; }
-      // If error div appears, save failed — stop polling
-      const errorCount = await page.locator('.text-red-500').count();
-      if (errorCount > 0) break;
+    // Check if save succeeded (modal navigates to library) or failed (modal stays open)
+    const modalOpen = await page.locator('#name').isVisible().catch(() => false);
+    if (modalOpen) {
+      // Save failed — capture error text for diagnostics
+      const errorText = await page.locator('.text-red-500').textContent().catch(() => 'no error element');
+      throw new Error(`Save failed. Modal still open. Error: ${errorText}`);
     }
-    if (!savedSuccessfully) {
-      // Check if modal is still open (save failed) vs library not loaded yet
-      const modalOpen = await page.locator('#name').isVisible().catch(() => false);
-      throw new Error(`Save did not produce a visible dish card. Modal open: ${modalOpen}`);
-    }
+
+    // Save succeeded: we're now on the library page. Wait for the dish card to appear.
+    await expect(page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")')).toBeVisible({ timeout: 10000 });
 
     // Re-open to verify all changes persisted
     await page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")').click();
