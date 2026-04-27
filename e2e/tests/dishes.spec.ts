@@ -62,6 +62,9 @@ test.describe.serial('dish CRUD', () => {
     await page.fill('#notes', 'Can use any pasta shape.');
 
     await page.click('#save-btn');
+
+    // Wait for modal to close (indicates successful save), then verify dish appears in list
+    await page.waitForSelector('#name', { state: 'hidden', timeout: 10000 });
     await expect(page.locator('text=E2E Test Pasta Edited')).toBeVisible({ timeout: 10000 });
 
     // Re-open to verify all changes persisted
