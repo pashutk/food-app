@@ -30,7 +30,7 @@ function navTab(id: string, label: string, activeTab: string) {
   return `<a href="#${id}" class="flex items-center gap-1.5 px-3 py-3 text-sm font-medium ${cls}">${label}</a>`;
 }
 
-function renderApp() {
+async function renderApp() {
   const app = document.getElementById('app')!;
 
   if (!isAuthenticated()) {
@@ -68,7 +68,7 @@ function renderApp() {
   const content = document.getElementById('main-content')!;
 
   if (view === 'menu') renderMenuBuilder(content);
-  else if (view === 'library') renderDishLibrary(content);
+  else if (view === 'library') await renderDishLibrary(content);
   else if (view === 'editor') {
     const id = location.hash.startsWith('#editor-')
       ? parseInt(location.hash.slice('#editor-'.length))

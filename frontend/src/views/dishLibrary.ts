@@ -53,7 +53,12 @@ export async function renderDishLibrary(container: HTMLElement) {
   let showImport = false;
 
   async function load() {
-    allDishes = await dishesApi.list();
+    try {
+      allDishes = await dishesApi.list();
+    } catch (err) {
+      console.error('Failed to load dishes:', err);
+      allDishes = [];
+    }
     render();
   }
 
