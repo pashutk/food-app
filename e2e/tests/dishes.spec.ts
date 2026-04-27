@@ -63,12 +63,17 @@ test.describe.serial('dish CRUD', () => {
 
     await page.click('#save-btn');
 
-    // Wait for modal to close (indicates successful save), then verify dish appears in list
-    await page.waitForSelector('#name', { state: 'hidden', timeout: 10000 });
-    await expect(page.locator('text=E2E Test Pasta Edited')).toBeVisible({ timeout: 10000 });
+    // Wait for the save to complete by polling the form's saving state (button becomes re-enabled)
+    await page.waitForFunction(() => {
+      const btn = document.querySelector('#save-btn') as HTMLButtonElement;
+      return btn && !btn.disabled;
+    }, { timeout: 10000 });
+
+    // Verify the dish card in the list shows the edited name (modal closes on success, reopens on error)
+    await expect(page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")')).toBeVisible({ timeout: 10000 });
 
     // Re-open to verify all changes persisted
-    await page.click('text=E2E Test Pasta Edited');
+    await page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")').click();
     await page.waitForSelector('#name');
 
     await expect(page.locator('#name')).toHaveValue('E2E Test Pasta Edited');
