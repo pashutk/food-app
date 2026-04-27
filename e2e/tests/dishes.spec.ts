@@ -63,14 +63,29 @@ test.describe.serial('dish CRUD', () => {
 
     await page.click('#save-btn');
 
-    // Wait for the save to complete by polling the form's saving state (button becomes re-enabled)
+    // Wait for the save to complete (button becomes re-enabled when API call finishes)
     await page.waitForFunction(() => {
       const btn = document.querySelector('#save-btn') as HTMLButtonElement;
       return btn && !btn.disabled;
     }, { timeout: 10000 });
 
-    // Verify the dish card in the list shows the edited name (modal closes on success, reopens on error)
-    await expect(page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")')).toBeVisible({ timeout: 10000 });
+    // The edit modal calls location.hash = '#library' on success, which renders the library
+    // (empty first, then async load() fetches dishes). Wait for the dish card to appear.
+    // If save fails, the modal stays open with an error div; poll and check for that.
+    let savedSuccessfully = false;
+    for (let i = 0; i < 20; i++) {
+      await page.waitForTimeout(500);
+      const cardCount = await page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")').count();
+      if (cardCount > 0) { savedSuccessfully = true; break; }
+      // If error div appears, save failed — stop polling
+      const errorCount = await page.locator('.text-red-500').count();
+      if (errorCount > 0) break;
+    }
+    if (!savedSuccessfully) {
+      // Check if modal is still open (save failed) vs library not loaded yet
+      const modalOpen = await page.locator('#name').isVisible().catch(() => false);
+      throw new Error(`Save did not produce a visible dish card. Modal open: ${modalOpen}`);
+    }
 
     // Re-open to verify all changes persisted
     await page.locator('a[href^="#editor-"]:has-text("E2E Test Pasta Edited")').click();
