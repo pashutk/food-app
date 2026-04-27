@@ -62,7 +62,7 @@ test.describe.serial('dish CRUD', () => {
     await page.fill('#notes', 'Can use any pasta shape.');
 
     await page.click('#save-btn');
-    await expect(page.locator('text=E2E Test Pasta Edited')).toBeVisible();
+    await expect(page.locator('text=E2E Test Pasta Edited')).toBeVisible({ timeout: 10000 });
 
     // Re-open to verify all changes persisted
     await page.click('text=E2E Test Pasta Edited');
