@@ -9,7 +9,7 @@ import { listDishes } from '../../services/dishes';
 export function registerBrowseDishesTool(server: McpServer) {
   server.tool(
     'browse_dishes',
-    'List all dishes in the restaurant',
+    'List all dishes',
     {
       auth: z.object({
         token: z.string().describe('JWT token for authentication'),
