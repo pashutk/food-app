@@ -1,12 +1,12 @@
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { z } from 'zod';
 import { verifyCredentials, issueToken } from '../../services/auth';
 
 /**
  * MCP login tool — returns a JWT token for authenticated tool access.
  * Uses the same shared auth service as REST login.
  */
-export function registerLoginTool(server: any) {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const z = require('zod');
+export function registerLoginTool(server: McpServer) {
 
   server.tool(
     'login',
