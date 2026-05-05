@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { registerLoginTool } from './tools/login';
+import { registerReadTools } from './tools/index';
 
 export const mcpServer = new McpServer(
   {
@@ -33,3 +34,6 @@ mcpServer.tool(
 
 // Register login tool
 registerLoginTool(mcpServer);
+
+// Register read tools
+registerReadTools(mcpServer);
