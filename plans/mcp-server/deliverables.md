@@ -66,16 +66,16 @@ Consolidated deliverables across all 7 phases.
 
 **Deliverable:** The system is not just implemented; it is proven usable from Hermes.
 
-- [ ] `/mcp` documented in README
-- [ ] Hermes-side configuration shape documented
-- [ ] Auth flow documented (server-level headers vs app-level token)
-- [ ] One realistic Hermes flow validated: login -> browse dishes -> update menu
-- [ ] Protocol/schema caveats recorded
+- [x] `/mcp` documented in README
+- [x] Hermes-side configuration shape documented
+- [x] Auth flow documented (server-level headers vs app-level token)
+- [x] One realistic Hermes flow validated: login -> browse dishes -> update menu
+- [x] Protocol/schema caveats recorded
 
 ## Overall Definition Of Done
 
 - [x] `/mcp` runs inside the main backend app
-- [ ] Hermes can authenticate and perform core dish/menu workflows
+- [x] Hermes can authenticate and perform core dish/menu workflows
 - [x] MCP and REST share service behavior instead of calling each other
 - [ ] Backend tests and key UI regression tests pass
 - [ ] Design stays simple enough that future changes do not require archaeology
