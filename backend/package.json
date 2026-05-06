@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:mcp:http": "vitest run src/mcp/__tests__/http-smoke.test.ts",
-    "test:mcp:http:watch": "vitest src/mcp/__tests__/http-smoke.test.ts --watch"
+    "test:mcp:http:watch": "vitest src/mcp/__tests__/http-smoke.test.ts --watch",
+    "test:mcp:workflow": "vitest run src/mcp/__tests__/workflow.test.ts",
+    "test:mcp:workflow:watch": "vitest src/mcp/__tests__/workflow.test.ts --watch"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.29.0",
