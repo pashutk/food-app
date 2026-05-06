@@ -103,14 +103,19 @@ describe('dishes service', () => {
   });
 
   describe('deleteDish', () => {
-    it('deletes a dish and reports success', () => {
+    it('deletes a dish and reports found', () => {
       db.prepare(
         'INSERT INTO dishes (name, tags, takeout, ingredients, instructions, notes) VALUES (?, ?, ?, ?, ?, ?)',
       ).run('To Delete', '[]', 0, '[]', '', '');
 
       const result = dishesService.deleteDish('1');
-      expect(result).toEqual({ success: true });
+      expect(result).toEqual({ found: true });
       expect(dishesService.listDishes()).toHaveLength(0);
+    });
+
+    it('returns not found when dish does not exist', () => {
+      const result = dishesService.deleteDish('999');
+      expect(result).toEqual({ found: false });
     });
   });
 

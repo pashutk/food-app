@@ -125,4 +125,15 @@ describe('MCP remove_dish tool', () => {
     const dishIds = parsed.dishes.map((d: any) => d.id);
     expect(dishIds).not.toContain(createdDishId);
   });
+
+  it('remove_dish returns not-found error for non-existent dish', async () => {
+    const result = await client.callTool({
+      name: 'remove_dish',
+      arguments: { auth: { token }, id: '99999' },
+    });
+
+    const textContent = (result.content as any[])[0].text;
+    const parsed = JSON.parse(textContent);
+    expect(parsed.error).toContain('not found');
+  });
 });

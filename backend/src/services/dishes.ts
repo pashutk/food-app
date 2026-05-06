@@ -133,11 +133,14 @@ export function updateDish(
 }
 
 /**
- * Delete a dish by id. Returns { success: true }.
+ * Delete a dish by id. Returns { found: true } if deleted, or { found: false } if not found.
  */
-export function deleteDish(id: string): { success: true } {
-  db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
-  return { success: true };
+export function deleteDish(id: string): { found: true } | { found: false } {
+  const info = db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
+  if (info.changes === 0) {
+    return { found: false };
+  }
+  return { found: true };
 }
 
 /**

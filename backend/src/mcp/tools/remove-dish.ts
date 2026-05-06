@@ -19,7 +19,15 @@ export function registerRemoveDishTool(server: McpServer) {
     async (params: { auth: { token: string }; id: string }) => {
       try {
         verifyToken(params.auth.token);
-        deleteDish(params.id);
+        const result = deleteDish(params.id);
+        if (!result.found) {
+          return {
+            content: [{
+              type: 'text' as const,
+              text: JSON.stringify({ error: `Dish with id ${params.id} not found` }),
+            }],
+          };
+        }
         return {
           content: [{
             type: 'text' as const,
