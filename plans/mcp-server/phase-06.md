@@ -138,7 +138,21 @@ A realistic MCP end-to-end verification loop exists, and the transport layer is 
 - Workflow tests assert only that some text exists instead of validating the actual JSON contract.
 - Operator smoke script drifts away from what the automated blackbox tests actually do.
 
+## Deployment constraint: stateful transport
+
+The current `StreamableHTTPServerTransport` stores session state in process memory. This means:
+
+- Session IDs are stored in the backend process that created them.
+- Repeated requests for one session **must** hit the same backend process.
+- Non-sticky load balancing or proxy fan-out can produce `Bad Request: Server not initialized`, `Bad Request: Mcp-Session-Id header is required`, or `Session not found` errors.
+
+**Acceptable operator fixes:**
+- Sticky routing / affinity for `/mcp` traffic.
+- Single backend instance for MCP traffic.
+- Future redesign to stateless transport or shared session storage.
+
 ## Decision locked in
 
 - MCP deployment safety depends on blackbox HTTP-client workflows, not only per-tool tests.
 - Transport lifecycle bugs are first-class risks and deserve their own hardening phase.
+- The transport adapter now handles `GET`, `POST`, and `DELETE /mcp` — the full Streamable HTTP method surface expected by MCP SDK clients.

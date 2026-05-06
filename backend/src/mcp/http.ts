@@ -50,4 +50,19 @@ export function mountMCP(app: Express) {
       }
     }
   });
+
+  // DELETE: session termination
+  app.delete('/mcp', async (req: Request, res: Response) => {
+    if (!transport) {
+      res.status(500).json({ error: 'Transport not initialized' });
+      return;
+    }
+    try {
+      await transport.handleRequest(req, res);
+    } catch (error) {
+      if (!res.headersSent) {
+        res.status(500).json({ error: 'Internal server error' });
+      }
+    }
+  });
 }
