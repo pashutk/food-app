@@ -88,3 +88,82 @@ cd frontend
 npm install
 npm run dev            # starts on :5173, proxies /api to :3000
 ```
+
+## MCP Server
+
+The backend exposes an MCP (Model Context Protocol) server at the `/mcp` endpoint using StreamableHTTP transport. This allows LLM agents (such as Hermes) to interact with the food app programmatically.
+
+### Endpoint
+
+```
+POST /mcp   — JSON-RPC request/response
+GET  /mcp   — SSE event stream for server notifications
+```
+
+### Transport Caveat
+
+The StreamableHTTP transport requires the client to send **both** `application/json` and `text/event-stream` in the `Accept` header. The `@modelcontextprotocol/sdk` `StreamableHTTPClientTransport` handles this automatically. If you are making raw HTTP requests, make sure both MIME types are present.
+
+### Available Tools
+
+| Tool | Auth Required | Parameters | Description |
+|------|:---:|------------|-------------|
+| `ping` | No | `message?` (string) | Health check; echoes message back with timestamp |
+| `login` | No | `username` (string), `password` (string) | Authenticate and receive a JWT token |
+| `browse_dishes` | Yes | `auth.token` (string) | List all dishes |
+| `view_menu` | Yes | `auth.token` (string), `date` (YYYY-MM-DD) | View menu for a specific date |
+| `add_dish` | Yes | `auth.token`, `name`, `tags?`, `takeout?`, `ingredients?`, `instructions?`, `notes?` | Create a new dish |
+| `edit_dish` | Yes | `auth.token`, `id`, `name`, `tags?`, `takeout?`, `ingredients?`, `instructions?`, `notes?` | Update an existing dish |
+| `remove_dish` | Yes | `auth.token`, `id` (string) | Delete a dish by ID |
+| `import_dishes` | Yes | `auth.token`, `items` (array of dish objects) | Bulk import dishes; fails if any name already exists |
+| `update_menu` | Yes | `auth.token`, `date` (YYYY-MM-DD), `entries` (array) | Create or replace menu entries for a date |
+
+### Auth Flow
+
+Food-app auth is **app-level**, not transport-level. The `headers` config option (if you add it) is for transport authentication; food-app uses tool-level auth instead:
+
+1. Call `login` with your `username` and `password` (as configured in `.env` via `AUTH_USERNAME` / `AUTH_PASSWORD`).
+2. The response contains a JWT `token`.
+3. Pass the token as `auth.token` in every subsequent call to protected tools.
+
+**Do not** rely on `headers` for food-app authentication — the `login` tool is the entry point.
+
+### Example Flow
+
+```
+1. login(username="admin", password="secret")
+   → { status: "ok", token: "eyJhbGci..." }
+
+2. browse_dishes(auth={ token: "eyJhbGci..." })
+   → { dishes: [ { id: "abc1", name: "Pasta", ... }, ... ] }
+
+3. update_menu(
+     auth={ token: "eyJhbGci..." },
+     date="2026-05-06",
+     entries=[{ meal: "lunch", dish_id: "abc1" }]
+   )
+   → { menu: { date: "2026-05-06", entries: [...] } }
+```
+
+### Hermes Configuration
+
+Add the MCP server to `~/.hermes/config.yaml` under `mcp_servers`:
+
+```yaml
+mcp_servers:
+  food-app:
+    url: "http://localhost:3000/mcp"
+```
+
+Replace `http://localhost:3000` with your deployed instance URL. For remote servers with authentication, use `headers`:
+
+```yaml
+mcp_servers:
+  food-app:
+    url: "https://food-app.example.com/mcp"
+    headers:
+      Authorization: "Bearer sk-..."
+    timeout: 180
+```
+
+Tools will be registered as `mcp_food-app_ping`, `mcp_food-app_login`, `mcp_food-app_browse_dishes`, etc.
