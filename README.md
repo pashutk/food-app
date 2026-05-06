@@ -140,9 +140,9 @@ Food-app auth is **app-level**, not transport-level. The `headers` config option
 3. update_menu(
      auth={ token: "eyJhbGci..." },
      date="2026-05-06",
-     entries=[{ meal: "lunch", dish_id: "abc1" }]
+     entries=[{ dish: "Breakfast" }, { dish: "Lunch" }]
    )
-   → { menu: { date: "2026-05-06", entries: [...] } }
+   → { date: "2026-05-06", entries: [...] }
 ```
 
 ### Hermes Configuration
