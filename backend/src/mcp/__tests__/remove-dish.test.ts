@@ -2,11 +2,12 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { createApp } from '../../app';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Server } from 'http';
 
 const PORT = 4000;
 const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: any;
+let server: Server | null = null;
 let client: Client;
 let transport: StreamableHTTPClientTransport;
 let token: string;
@@ -122,7 +123,7 @@ describe('MCP remove_dish tool', () => {
 
     const textContent = (browseResult.content as any[])[0].text;
     const parsed = JSON.parse(textContent);
-    const dishIds = parsed.dishes.map((d: any) => d.id);
+    const dishIds = parsed.dishes.map((d: { id: string }) => d.id);
     expect(dishIds).not.toContain(createdDishId);
   });
 

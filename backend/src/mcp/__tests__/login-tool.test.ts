@@ -3,12 +3,13 @@ import { createApp } from '../../app';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { verifyToken } from '../../services/auth';
+import type { Server } from 'http';
 
 // Use a unique port for the test server
 const PORT = 3998;
 const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: any;
+let server: Server | null = null;
 let client: Client;
 let transport: StreamableHTTPClientTransport;
 

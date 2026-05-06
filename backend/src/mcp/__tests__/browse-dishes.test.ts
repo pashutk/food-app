@@ -2,12 +2,13 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { createApp } from '../../app';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Server } from 'http';
 
 // Use a unique port for the test server
 const PORT = 3997;
 const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: any;
+let server: Server | null = null;
 let client: Client;
 let transport: StreamableHTTPClientTransport;
 let token: string;

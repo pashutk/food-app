@@ -2,6 +2,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { createApp } from '../../app';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import type { Server } from 'http';
 
 /**
  * Phase 6 — Blackbox MCP workflow test.
@@ -17,7 +18,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 const PORT = 4010;
 const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: any;
+let server: Server | null = null;
 let client: Client;
 let transport: StreamableHTTPClientTransport;
 
