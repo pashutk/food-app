@@ -156,3 +156,22 @@ The current `StreamableHTTPServerTransport` stores session state in process memo
 - MCP deployment safety depends on blackbox HTTP-client workflows, not only per-tool tests.
 - Transport lifecycle bugs are first-class risks and deserve their own hardening phase.
 - The transport adapter now handles `GET`, `POST`, and `DELETE /mcp` — the full Streamable HTTP method surface expected by MCP SDK clients.
+
+---
+
+## Appendix A: 2026-05-08 singleton transport diagnosis
+
+The diagnosis in `projects/food-app/plans/mcp-server/2026-05-08_mcp-400-diagnosis.md` adds a second, more important failure mode beyond the previously fixed missing-DELETE bug.
+
+What this appendix changes:
+- A passing `DELETE /mcp` termination path is necessary but not sufficient.
+- The current singleton `StreamableHTTPServerTransport` pattern can still fail even when all three HTTP methods exist.
+- Phase 6 must now prove that two independent fresh clients can initialize successfully in sequence, and ideally concurrently, without one poisoning the other's lifecycle.
+
+Additional verification now required:
+- one client initializes, uses tools, and closes cleanly,
+- a second new client can initialize after the first client lifecycle,
+- repeated client runs do not require a backend restart,
+- failure output stays obviously attributable to transport lifecycle rather than auth or tool logic.
+
+If the blackbox suite only proves a single happy-path client, this phase is incomplete.
