@@ -3,6 +3,7 @@ import { createApp } from '../../app';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import type { Server } from 'http';
+import * as mcpHttpModule from '../http';
 
 /**
  * Multi-client lifecycle tests.
@@ -136,5 +137,26 @@ describe('MCP multi-client lifecycle', () => {
 
     await clientA.close();
     await clientB.close();
+  });
+
+  it('bounds stale session growth with expiry pruning', async () => {
+    const sessionMap = (mcpHttpModule as unknown as {
+      sessions?: Map<string, { expiresAt?: number }>;
+    }).sessions;
+
+    expect(sessionMap).toBeDefined();
+
+    const { client } = await connectClient('cleanup-client');
+    const sessionIds = Array.from(sessionMap!.keys());
+    const newestSessionId = sessionIds[sessionIds.length - 1];
+    const entry = sessionMap!.get(newestSessionId);
+
+    expect(entry).toBeDefined();
+    entry!.expiresAt = Date.now() - 1;
+
+    await client.close();
+    await connectClient('prune-client');
+
+    expect(sessionMap!.has(newestSessionId)).toBe(false);
   });
 });

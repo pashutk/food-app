@@ -269,7 +269,6 @@ describe('MCP blackbox authenticated workflow', () => {
   });
 
   // Step 10: Transport lifecycle note
-  // The MCP SDK requires a singleton transport — mcpServer.connect() can only
-  // be called once. Concurrent clients share the transport, which is by design.
-  // This is documented behavior, not a bug.
+  // Each MCP session owns its own transport/server pair. That avoids the old
+  // singleton bug where one initialized client poisoned later fresh clients.
 });

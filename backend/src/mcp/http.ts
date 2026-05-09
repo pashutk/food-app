@@ -24,9 +24,33 @@ import { createMcpServer } from './server';
 interface SessionEntry {
   transport: StreamableHTTPServerTransport;
   server: ReturnType<typeof createMcpServer>;
+  expiresAt: number;
 }
 
-const sessions = new Map<string, SessionEntry>();
+export const sessions = new Map<string, SessionEntry>();
+const SESSION_TTL_MS = 30 * 60 * 1000;
+
+function closeSessionEntry(entry: SessionEntry) {
+  entry.server.close().catch(() => {});
+  entry.transport.close().catch(() => {});
+}
+
+function refreshSessionExpiry(sessionId: string) {
+  const entry = sessions.get(sessionId);
+  if (entry) {
+    entry.expiresAt = Date.now() + SESSION_TTL_MS;
+  }
+}
+
+function pruneExpiredSessions() {
+  const now = Date.now();
+  for (const [sessionId, entry] of Array.from(sessions.entries())) {
+    if (entry.expiresAt <= now) {
+      sessions.delete(sessionId);
+      closeSessionEntry(entry);
+    }
+  }
+}
 
 function getSessionIdFromRequest(req: Request): string | undefined {
   // The MCP SDK uses the Mcp-Session-Id header
@@ -38,9 +62,8 @@ function getSessionIdFromRequest(req: Request): string | undefined {
 function cleanupSession(sessionId: string) {
   const entry = sessions.get(sessionId);
   if (entry) {
-    entry.server.close().catch(() => {});
-    entry.transport.close().catch(() => {});
     sessions.delete(sessionId);
+    closeSessionEntry(entry);
   }
 }
 
@@ -50,6 +73,7 @@ export function mountMCP(app: Express) {
     res: Response,
     parsedBody?: unknown
   ) {
+    pruneExpiredSessions();
     const sessionId = getSessionIdFromRequest(req);
 
     if (sessionId) {
@@ -60,6 +84,7 @@ export function mountMCP(app: Express) {
         return;
       }
       try {
+        refreshSessionExpiry(sessionId);
         await entry.transport.handleRequest(req, res, parsedBody);
       } catch (error) {
         if (!res.headersSent) {
@@ -94,7 +119,11 @@ export function mountMCP(app: Express) {
       // After initialize, the transport has a sessionId. Register it.
       const newSessionId = transport.sessionId;
       if (newSessionId) {
-        sessions.set(newSessionId, { transport, server });
+        sessions.set(newSessionId, {
+          transport,
+          server,
+          expiresAt: Date.now() + SESSION_TTL_MS,
+        });
       }
     } catch (error) {
       if (!res.headersSent) {
