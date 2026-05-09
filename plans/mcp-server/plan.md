@@ -477,3 +477,21 @@ Done means:
 - MCP and REST share service behavior instead of calling each other,
 - backend tests and key UI regression tests pass,
 - the design stays simple enough that future changes do not require archaeology.
+
+---
+
+## Appendix A: 2026-05-08 MCP 400 diagnosis update
+
+The diagnosis in `projects/food-app/plans/mcp-server/2026-05-08_mcp-400-diagnosis.md` materially changes one transport assumption in this plan.
+
+What changed:
+- The old assumption that one long-lived `StreamableHTTPServerTransport` could safely stay connected for the life of the backend process is wrong.
+- A singleton transport can remain in an initialized state after one client lifecycle and reject a later fresh client with `Invalid Request: Server already initialized`.
+- That failure mode explains the live Hermes `400 Bad Request` discovery failure more directly than the older DELETE-only diagnosis.
+
+What this plan now requires:
+- Transport design must be lifecycle-safe for repeated fresh clients, not merely functional for one smoke-tested client.
+- Phase 6 verification must include sequential and concurrent multi-client coverage.
+- Phase 7 acceptance must prove Hermes can connect after prior MCP sessions already existed, not just after a clean backend restart.
+
+This does not change the v1 auth model or tool contract. It changes the acceptance bar for transport correctness.

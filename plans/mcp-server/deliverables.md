@@ -79,3 +79,16 @@ Consolidated deliverables across all 7 phases.
 - [x] MCP and REST share service behavior instead of calling each other
 - [ ] Backend tests and key UI regression tests pass
 - [ ] Design stays simple enough that future changes do not require archaeology
+
+---
+
+## Appendix A — 2026-05-08 MCP 400 diagnosis impact
+
+The diagnosis in `projects/food-app/plans/mcp-server/2026-05-08_mcp-400-diagnosis.md` changes the meaning of Phase 6 and Phase 7 completion.
+
+Impact on deliverables:
+- Phase 6 is not complete unless blackbox verification proves repeated fresh-client initialization works, not just one client lifecycle.
+- Phase 7 is not complete unless Hermes consumption still works after prior MCP sessions have already existed.
+- A successful first connection after restart is no longer treated as sufficient rollout proof.
+
+This appendix does not reopen the already chosen auth or tool scope. It tightens the transport acceptance gate.

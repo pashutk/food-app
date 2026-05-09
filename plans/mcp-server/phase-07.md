@@ -134,3 +134,21 @@ The MCP server is not just implemented and tested; it is proven consumable from 
 
 - Hermes consumption is the final acceptance gate, not an optional nice-to-have.
 - Runtime config remains a manual/operator concern; this phase documents it but does not mutate it.
+
+---
+
+## Appendix A: 2026-05-08 transport lifecycle acceptance update
+
+The diagnosis in `projects/food-app/plans/mcp-server/2026-05-08_mcp-400-diagnosis.md` changes what counts as a valid Hermes consumption proof.
+
+What this appendix adds:
+- A single successful Hermes connection after a backend restart is not strong enough evidence.
+- Hermes consumption must still succeed when previous MCP sessions have already existed.
+- If the endpoint only works for the first client after process start, Phase 7 has failed even if the docs are accurate and the happy path looks good once.
+
+Additional acceptance checks:
+- verify Hermes can discover tools from a fresh client after at least one earlier MCP session has already initialized and ended,
+- verify the documented login -> token -> protected-tool flow still works in that non-pristine state,
+- record any remaining deployment-level stickiness caveats separately from the in-process singleton transport bug.
+
+This phase remains documentation-plus-verification, but the verification bar is now stricter and more realistic.
