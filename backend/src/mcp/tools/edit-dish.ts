@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { updateDish } from '../../services/dishes';
 import { MEAL_TAGS, tagsDescription } from './consts';
+import { IngredientSchema, ingredientsDescription } from './schemas';
+
+type Ingredient = { name: string; quantity: number; unit: string };
 
 /**
  * MCP edit_dish tool — update an existing dish (authenticated).
@@ -19,27 +22,18 @@ export function registerEditDishTool(server: McpServer) {
       name: z.string().describe('Dish name'),
       tags: z.array(z.string()).optional().describe(tagsDescription()),
       takeout: z.boolean().optional().describe('Takeout flag'),
-      ingredients: z.array(z.unknown()).optional().describe('Ingredients'),
+      ingredients: z.array(IngredientSchema).optional().describe(ingredientsDescription()),
       instructions: z.string().optional().describe('Instructions'),
       notes: z.string().optional().describe('Notes'),
     },
-    async (params: {
-      auth: { token: string };
-      id: string;
-      name: string;
-      tags?: string[];
-      takeout?: boolean;
-      ingredients?: unknown[];
-      instructions?: string;
-      notes?: string;
-    }) => {
+    async (params) => {
       try {
         verifyToken(params.auth.token);
         const result = updateDish(params.id, {
           name: params.name,
           tags: params.tags,
           takeout: params.takeout,
-          ingredients: params.ingredients,
+          ingredients: params.ingredients as Ingredient[] | undefined,
           instructions: params.instructions,
           notes: params.notes,
         });

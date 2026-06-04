@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { createDish } from '../../services/dishes';
 import { MEAL_TAGS, tagsDescription } from './consts';
+import { IngredientSchema, ingredientsDescription } from './schemas';
+
+type Ingredient = { name: string; quantity: number; unit: string };
 
 /**
  * MCP add_dish tool — create a new dish (authenticated write).
@@ -18,26 +21,18 @@ export function registerAddDishTool(server: McpServer) {
       name: z.string().describe('Name of the dish'),
       tags: z.array(z.string()).optional().describe(tagsDescription()),
       takeout: z.boolean().optional().describe('Whether the dish is takeout'),
-      ingredients: z.array(z.unknown()).optional().describe('Ingredients for the dish'),
+      ingredients: z.array(IngredientSchema).optional().describe(ingredientsDescription()),
       instructions: z.string().optional().describe('Cooking instructions'),
       notes: z.string().optional().describe('Additional notes'),
     },
-    async (params: {
-      auth: { token: string };
-      name: string;
-      tags?: string[];
-      takeout?: boolean;
-      ingredients?: unknown[];
-      instructions?: string;
-      notes?: string;
-    }) => {
+    async (params) => {
       try {
         verifyToken(params.auth.token);
         const dish = createDish({
           name: params.name,
           tags: params.tags,
           takeout: params.takeout,
-          ingredients: params.ingredients,
+          ingredients: params.ingredients as Ingredient[] | undefined,
           instructions: params.instructions,
           notes: params.notes,
         });

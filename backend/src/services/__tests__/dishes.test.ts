@@ -37,12 +37,12 @@ describe('dishes service', () => {
     it('parses JSON fields correctly', () => {
       db.prepare(
         'INSERT INTO dishes (name, tags, takeout, ingredients, instructions, notes) VALUES (?, ?, ?, ?, ?, ?)',
-      ).run('Test', '["tag1","tag2"]', 1, '["ing1"]', 'instructions', 'notes');
+      ).run('Test', '["tag1","tag2"]', 1, '[{"name":"flour","quantity":200,"unit":"g"}]', 'instructions', 'notes');
 
       const result = dishesService.listDishes();
       expect(result[0].tags).toEqual(['tag1', 'tag2']);
       expect(result[0].takeout).toBe(true);
-      expect(result[0].ingredients).toEqual(['ing1']);
+      expect(result[0].ingredients).toEqual([{ name: 'flour', quantity: 200, unit: 'g' }]);
       expect(result[0].instructions).toBe('instructions');
       expect(result[0].notes).toBe('notes');
     });
@@ -64,16 +64,29 @@ describe('dishes service', () => {
         name: 'Test',
         tags: ['tag1'],
         takeout: true,
-        ingredients: ['ing1'],
+        ingredients: [{ name: 'flour', quantity: 200, unit: 'g' }],
         instructions: 'do things',
         notes: 'some notes',
       });
       expect(result.name).toBe('Test');
       expect(result.tags).toEqual(['tag1']);
       expect(result.takeout).toBe(true);
-      expect(result.ingredients).toEqual(['ing1']);
+      expect(result.ingredients).toEqual([{ name: 'flour', quantity: 200, unit: 'g' }]);
       expect(result.instructions).toBe('do things');
       expect(result.notes).toBe('some notes');
+    });
+
+    it('creates a dish with multiple ingredients', () => {
+      const result = dishesService.createDish({
+        name: 'Pancakes',
+        ingredients: [
+          { name: 'flour', quantity: 200, unit: 'g' },
+          { name: 'milk', quantity: 250, unit: 'ml' },
+          { name: 'eggs', quantity: 2, unit: 'pieces' },
+        ],
+      });
+      expect(result.ingredients).toHaveLength(3);
+      expect(result.ingredients[0]).toEqual({ name: 'flour', quantity: 200, unit: 'g' });
     });
   });
 

@@ -3,6 +3,9 @@ import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { importDishes } from '../../services/dishes';
 import { MEAL_TAGS, tagsDescription } from './consts';
+import { IngredientSchema, ingredientsDescription } from './schemas';
+
+type Ingredient = { name: string; quantity: number; unit: string };
 
 /**
  * MCP import_dishes tool — bulk import dishes (authenticated write).
@@ -20,26 +23,25 @@ export function registerImportDishesTool(server: McpServer) {
           name: z.string().describe('Name of the dish'),
           tags: z.array(z.string()).optional().describe(tagsDescription()),
           takeout: z.boolean().optional().describe('Whether the dish is takeout'),
-          ingredients: z.array(z.unknown()).optional().describe('Ingredients for the dish'),
+          ingredients: z.array(IngredientSchema).optional().describe(ingredientsDescription()),
           instructions: z.string().optional().describe('Cooking instructions'),
           notes: z.string().optional().describe('Additional notes'),
         }),
       ).describe('Array of dishes to import'),
     },
-    async (params: {
-      auth: { token: string };
-      items: Array<{
-        name: string;
-        tags?: string[];
-        takeout?: boolean;
-        ingredients?: unknown[];
-        instructions?: string;
-        notes?: string;
-      }>;
-    }) => {
+    async (params) => {
       try {
         verifyToken(params.auth.token);
-        const result = importDishes(params.items);
+        const result = importDishes(
+          params.items.map((item) => ({
+            name: item.name,
+            tags: item.tags,
+            takeout: item.takeout,
+            ingredients: item.ingredients as Ingredient[] | undefined,
+            instructions: item.instructions,
+            notes: item.notes,
+          })),
+        );
         return {
           content: [{
             type: 'text' as const,

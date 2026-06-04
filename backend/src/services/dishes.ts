@@ -1,4 +1,5 @@
 import db from '../db';
+import { Ingredient, validateIngredients, validateTags } from './schemas';
 
 /**
  * Dishes service — domain boundary for dish reads/writes.
@@ -23,7 +24,7 @@ export interface ParsedDish {
   name: string;
   tags: string[];
   takeout: boolean;
-  ingredients: unknown[];
+  ingredients: Ingredient[];
   instructions: string;
   notes: string;
   created_at: string;
@@ -31,11 +32,21 @@ export interface ParsedDish {
 }
 
 export function parse(row: DishRow): ParsedDish {
+  const ingredients = (() => {
+    const raw = JSON.parse(row.ingredients);
+    const validated = validateIngredients(raw);
+    if (!validated.ok) {
+      // Corrupted data — fall back to empty array
+      return [];
+    }
+    return validated.data;
+  })();
+
   return {
     ...row,
     takeout: row.takeout === 1,
     tags: JSON.parse(row.tags),
-    ingredients: JSON.parse(row.ingredients),
+    ingredients,
   };
 }
 
@@ -43,7 +54,7 @@ export interface CreateDishInput {
   name: string;
   tags?: string[];
   takeout?: boolean;
-  ingredients?: unknown[];
+  ingredients?: Ingredient[];
   instructions?: string;
   notes?: string;
 }
@@ -52,7 +63,7 @@ export interface UpdateDishInput {
   name: string;
   tags?: string[];
   takeout?: boolean;
-  ingredients?: unknown[];
+  ingredients?: Ingredient[];
   instructions?: string;
   notes?: string;
 }
@@ -61,7 +72,7 @@ export interface ImportDishInput {
   name: string;
   tags?: string[];
   takeout?: boolean;
-  ingredients?: unknown[];
+  ingredients?: Ingredient[];
   instructions?: string;
   notes?: string;
 }
@@ -136,7 +147,7 @@ export function updateDish(
  * Delete a dish by id. Returns { found: true } if deleted, or { found: false } if not found.
  */
 export function deleteDish(id: string): { found: true } | { found: false } {
-  const info = db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
+  const info = db.prepare('DELETE FROM dishes WHERE id=?').run(id);
   if (info.changes === 0) {
     return { found: false };
   }
