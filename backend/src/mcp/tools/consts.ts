@@ -1,22 +1,13 @@
 /**
  * Shared enum values for MCP tool schema descriptions.
- * These mirror the frontend types (MealTag, MealSlot) so that
- * MCP clients can see the valid values in tool parameter descriptions.
+ * Single source of truth — descriptions are derived from this array.
  */
 
-export const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'drink'];
-
-export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
+export const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'drink'] as const;
 
 /**
- * Description text for dish tag fields — dynamically generated from MEAL_TAGS.
- * Use MEAL_TAGS as the single source of truth — descriptions will stay in sync.
+ * Description text derived from the array — always in sync.
  */
-export const TAGS_DESCRIPTION =
-  `Tags for the dish. Valid values: ${MEAL_TAGS.join(', ')}`;
-
-/**
- * Description text for menu entries array — documents the full shape.
- */
-export const MENU_ENTRIES_DESCRIPTION =
-  'Menu entries to upsert. Each entry: { slot: string (breakfast|lunch|dinner|snack), dishId: number, servings: number }';
+export function tagsDescription() {
+  return `Tags for the dish. Valid values: ${MEAL_TAGS.join(', ')}`;
+}

@@ -2,7 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { updateDish } from '../../services/dishes';
-import { TAGS_DESCRIPTION } from './consts';
+import { MEAL_TAGS, tagsDescription } from './consts';
 
 /**
  * MCP edit_dish tool — update an existing dish (authenticated).
@@ -17,7 +17,7 @@ export function registerEditDishTool(server: McpServer) {
       }).describe('Authentication token'),
       id: z.string().describe('ID of the dish to update'),
       name: z.string().describe('Dish name'),
-      tags: z.array(z.string()).optional().describe(TAGS_DESCRIPTION),
+      tags: z.array(z.string()).optional().describe(tagsDescription()),
       takeout: z.boolean().optional().describe('Takeout flag'),
       ingredients: z.array(z.unknown()).optional().describe('Ingredients'),
       instructions: z.string().optional().describe('Instructions'),
