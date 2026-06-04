@@ -9,16 +9,11 @@ export const MEAL_TAGS = ['breakfast', 'lunch', 'dinner', 'snack', 'dessert', 'd
 export const MEAL_SLOTS = ['breakfast', 'lunch', 'dinner', 'snack'];
 
 /**
- * Description text for dish tag fields — lists all valid MealTag values.
+ * Description text for dish tag fields — dynamically generated from MEAL_TAGS.
+ * Use MEAL_TAGS as the single source of truth — descriptions will stay in sync.
  */
 export const TAGS_DESCRIPTION =
-  'Tags for the dish. Valid values: breakfast, lunch, dinner, snack, dessert, drink';
-
-/**
- * Description text for menu slot fields — lists all valid MealSlot values.
- */
-export const SLOT_DESCRIPTION =
-  'Meal slot. Valid values: breakfast, lunch, dinner, snack';
+  `Tags for the dish. Valid values: ${MEAL_TAGS.join(', ')}`;
 
 /**
  * Description text for menu entries array — documents the full shape.
