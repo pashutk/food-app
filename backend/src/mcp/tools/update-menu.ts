@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { upsertMenu } from '../../services/menus';
+import { MENU_ENTRIES_DESCRIPTION } from './consts';
 
 /**
  * MCP update_menu tool — upsert a menu for a date (authenticated write).
@@ -15,7 +16,7 @@ export function registerUpdateMenuTool(server: McpServer) {
         token: z.string().describe('JWT token for authentication'),
       }).describe('Authentication token'),
       date: z.string().describe('Date of the menu (YYYY-MM-DD)'),
-      entries: z.array(z.any()).describe('Menu entries to upsert'),
+      entries: z.array(z.any()).describe(MENU_ENTRIES_DESCRIPTION),
     },
     async (params: {
       auth: { token: string };

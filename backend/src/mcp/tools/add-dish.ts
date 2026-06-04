@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { createDish } from '../../services/dishes';
+import { TAGS_DESCRIPTION } from './consts';
 
 /**
  * MCP add_dish tool — create a new dish (authenticated write).
@@ -15,7 +16,7 @@ export function registerAddDishTool(server: McpServer) {
         token: z.string().describe('JWT token for authentication'),
       }).describe('Authentication token'),
       name: z.string().describe('Name of the dish'),
-      tags: z.array(z.string()).optional().describe('Tags for the dish'),
+      tags: z.array(z.string()).optional().describe(TAGS_DESCRIPTION),
       takeout: z.boolean().optional().describe('Whether the dish is takeout'),
       ingredients: z.array(z.unknown()).optional().describe('Ingredients for the dish'),
       instructions: z.string().optional().describe('Cooking instructions'),

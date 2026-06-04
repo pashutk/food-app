@@ -2,6 +2,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { verifyToken } from '../../services/auth';
 import { importDishes } from '../../services/dishes';
+import { TAGS_DESCRIPTION } from './consts';
 
 /**
  * MCP import_dishes tool — bulk import dishes (authenticated write).
@@ -17,7 +18,7 @@ export function registerImportDishesTool(server: McpServer) {
       items: z.array(
         z.object({
           name: z.string().describe('Name of the dish'),
-          tags: z.array(z.string()).optional().describe('Tags for the dish'),
+          tags: z.array(z.string()).optional().describe(TAGS_DESCRIPTION),
           takeout: z.boolean().optional().describe('Whether the dish is takeout'),
           ingredients: z.array(z.unknown()).optional().describe('Ingredients for the dish'),
           instructions: z.string().optional().describe('Cooking instructions'),
