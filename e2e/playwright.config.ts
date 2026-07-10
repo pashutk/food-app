@@ -24,7 +24,7 @@ const webServer = isCI
         reuseExistingServer: false,
       },
       {
-        command: 'VITE_BACKEND_PORT=3001 npm run dev',
+        command: 'VITE_BACKEND_PORT=3001 npm run dev -- --port 5174 --strictPort',
         cwd: path.resolve(__dirname, '../frontend'),
         port: 5174,
         reuseExistingServer: false,

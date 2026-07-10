@@ -1,7 +1,69 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
-import { z } from 'zod';
-import { registerLoginTool } from './tools/login';
-import { registerReadTools, registerMutationTools } from './tools/index';
+import { z, ZodError } from 'zod';
+import { executeEndpoint, getMcpEndpoints, isEndpointError } from '../endpoints';
+import { verifyToken } from '../services/auth';
+
+const authTokenSchema = z
+  .object({
+    token: z.string().describe('JWT token for authentication'),
+  })
+  .describe('Authentication token');
+
+function toToolResult(payload: unknown) {
+  return {
+    content: [
+      {
+        type: 'text' as const,
+        text: JSON.stringify(payload),
+      },
+    ],
+  };
+}
+
+function formatMcpError(error: unknown) {
+  if (error instanceof ZodError) {
+    return { error: 'Invalid arguments', details: error.issues };
+  }
+
+  if (isEndpointError(error)) {
+    return error.mcpBody ?? { error: error.message };
+  }
+
+  const message = error instanceof Error ? error.message : 'Internal server error';
+  return { error: message };
+}
+
+function stripAuth<T extends { auth: unknown }>(params: T): Omit<T, 'auth'> {
+  const { auth: _auth, ...rest } = params;
+  return rest;
+}
+
+function registerEndpointTools(server: McpServer) {
+  for (const endpoint of getMcpEndpoints()) {
+    const toolSchema =
+      endpoint.auth === 'protected'
+        ? endpoint.inputSchema.extend({ auth: authTokenSchema })
+        : endpoint.inputSchema;
+
+    server.tool(endpoint.name, endpoint.description, toolSchema.shape, async (rawParams: any) => {
+      try {
+        const params = toolSchema.parse(rawParams) as any;
+
+        if (endpoint.auth === 'protected') {
+          verifyToken(params.auth.token);
+        }
+
+        const rawInput = endpoint.auth === 'protected' ? stripAuth(params) : params;
+        const input = endpoint.inputSchema.parse(rawInput);
+        const output = await executeEndpoint(endpoint, input);
+        const body = endpoint.mcp?.presentSuccess ? endpoint.mcp.presentSuccess(output) : output;
+        return toToolResult(body);
+      } catch (error) {
+        return toToolResult(formatMcpError(error));
+      }
+    });
+  }
+}
 
 /**
  * Factory that creates a fresh McpServer instance.
@@ -41,14 +103,7 @@ export function createMcpServer(): McpServer {
     }
   );
 
-  // Login tool
-  registerLoginTool(server);
-
-  // Read tools
-  registerReadTools(server);
-
-  // Mutation tools
-  registerMutationTools(server);
+  registerEndpointTools(server);
 
   return server;
 }
