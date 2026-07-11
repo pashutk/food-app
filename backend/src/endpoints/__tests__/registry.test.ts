@@ -19,6 +19,9 @@ describe('endpoint registry parity', () => {
       'import_dishes',
       'view_menu',
       'update_menu',
+      'log_meal',
+      'view_meal_logs',
+      'remove_meal_log',
     ]);
   });
 

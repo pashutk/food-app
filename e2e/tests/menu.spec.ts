@@ -55,4 +55,39 @@ test.describe('menu builder', () => {
     await page.click('#next-day');
     await expect(page.locator('#date-input')).toHaveValue(startDate);
   });
+
+  test('logs a dish, keeps it after reload, and removes it', async ({ page }) => {
+    const testDate = '2030-01-15';
+    await page.locator('#date-input').evaluate((input, value) => {
+      const element = input as HTMLInputElement;
+      element.value = value;
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, testDate);
+    await expect(page.locator('#date-input')).toHaveValue(testDate);
+
+    const existingRow = page.locator('[data-meal-log-row]').filter({ hasText: 'E2E Menu Dish' });
+    if (await existingRow.count()) {
+      await existingRow.first().locator('.meal-log-remove-btn').click();
+      await expect(existingRow).toHaveCount(0);
+    }
+
+    await page.locator('#meal-log-dish').selectOption({ label: 'E2E Menu Dish' });
+    await page.locator('#meal-log-slot').selectOption('dinner');
+    await page.locator('#meal-log-save').click();
+
+    const loggedRow = page.locator('[data-meal-log-row]').filter({ hasText: 'E2E Menu Dish' });
+    await expect(loggedRow).toHaveCount(1);
+
+    await page.goto('/#menu');
+    await page.waitForSelector('#date-input');
+    await page.locator('#date-input').evaluate((input, value) => {
+      const element = input as HTMLInputElement;
+      element.value = value;
+      element.dispatchEvent(new Event('change', { bubbles: true }));
+    }, testDate);
+    await expect(page.locator('[data-meal-log-row]').filter({ hasText: 'E2E Menu Dish' })).toHaveCount(1);
+
+    await page.locator('[data-meal-log-row]').filter({ hasText: 'E2E Menu Dish' }).locator('.meal-log-remove-btn').click();
+    await expect(page.locator('[data-meal-log-row]').filter({ hasText: 'E2E Menu Dish' })).toHaveCount(0);
+  });
 });

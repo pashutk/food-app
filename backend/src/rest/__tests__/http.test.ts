@@ -57,8 +57,10 @@ describe('REST endpoint adapter', () => {
   }, 5000);
 
   beforeEach(() => {
+    db.exec('DELETE FROM meal_logs');
     db.exec('DELETE FROM dishes');
     db.exec('DELETE FROM menus');
+    db.exec("DELETE FROM sqlite_sequence WHERE name = 'meal_logs'");
     db.exec("DELETE FROM sqlite_sequence WHERE name = 'dishes'");
   });
 
@@ -160,6 +162,230 @@ describe('REST endpoint adapter', () => {
     expect(await viewResponse.json()).toEqual({
       date: '2026-07-09',
       entries,
+    });
+  });
+
+  it('creates a meal log through POST /api/meal-logs', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const dishResponse = await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Meal Log REST Dish', tags: ['dinner'] }),
+    });
+    const dish = (await dishResponse.json()) as any;
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-10',
+        dishId: dish.id,
+        slot: 'dinner',
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({
+      date: '2026-07-10',
+      dishId: dish.id,
+      slot: 'dinner',
+    });
+  });
+
+  it('lists meal logs through GET /api/meal-logs?date=...', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const dishResponse = await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Listed Meal Log Dish', tags: ['lunch'] }),
+    });
+    const dish = (await dishResponse.json()) as any;
+
+    await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-11',
+        dishId: dish.id,
+        slot: 'lunch',
+      }),
+    });
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs?date=2026-07-11`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([
+      expect.objectContaining({
+        date: '2026-07-11',
+        dishId: dish.id,
+        slot: 'lunch',
+        dish: {
+          id: dish.id,
+          name: 'Listed Meal Log Dish',
+        },
+      }),
+    ]);
+  });
+
+  it('deletes a meal log through DELETE /api/meal-logs/:id', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const dishResponse = await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Deleted Meal Log Dish', tags: ['breakfast'] }),
+    });
+    const dish = (await dishResponse.json()) as any;
+
+    const createResponse = await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-12',
+        dishId: dish.id,
+        slot: 'breakfast',
+      }),
+    });
+    const mealLog = (await createResponse.json()) as any;
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs/${mealLog.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ success: true });
+
+    const listResponse = await fetch(`${BASE_URL}/api/meal-logs?date=2026-07-12`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    expect(await listResponse.json()).toEqual([]);
+  });
+
+  it('returns not found when deleting a missing meal log', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs/999`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'Meal log with id 999 not found' });
+  });
+
+  it('requires auth for protected meal log routes', async () => {
+    const response = await fetch(`${BASE_URL}/api/meal-logs?date=2026-07-10`);
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('returns validation errors for invalid meal log input', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-10',
+        dishId: 123,
+        slot: 'brunch',
+      }),
+    });
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as any;
+    expect(payload.error).toBe('Invalid request');
+  });
+
+  it('returns validation errors for invalid meal log dates', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const response = await fetch(`${BASE_URL}/api/meal-logs?date=2026-02-31`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(response.status).toBe(400);
+    const payload = (await response.json()) as any;
+    expect(payload.error).toBe('Invalid date');
+  });
+
+  it('returns a conflict for duplicate slotted meal logs', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const dishResponse = await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Duplicate Meal Log Dish', tags: ['dinner'] }),
+    });
+    const dish = (await dishResponse.json()) as any;
+
+    await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-13',
+        dishId: dish.id,
+        slot: 'dinner',
+      }),
+    });
+
+    const duplicateResponse = await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-13',
+        dishId: dish.id,
+        slot: 'dinner',
+      }),
+    });
+
+    expect(duplicateResponse.status).toBe(409);
+    expect(await duplicateResponse.json()).toEqual({
+      error: 'Meal log already exists for that date, slot, and dish',
+    });
+  });
+
+  it('returns a clear conflict when deleting a dish with meal history', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+
+    const dishResponse = await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Protected From Delete', tags: ['dinner'] }),
+    });
+    const dish = (await dishResponse.json()) as any;
+
+    await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-14',
+        dishId: dish.id,
+        slot: 'dinner',
+      }),
+    });
+
+    const deleteResponse = await fetch(`${BASE_URL}/api/dishes/${dish.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    expect(deleteResponse.status).toBe(409);
+    expect(await deleteResponse.json()).toEqual({
+      error: 'Cannot delete dish with meal history',
     });
   });
 });

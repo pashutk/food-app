@@ -135,11 +135,24 @@ export function updateDish(
 /**
  * Delete a dish by id. Returns { found: true } if deleted, or { found: false } if not found.
  */
-export function deleteDish(id: string): { found: true } | { found: false } {
-  const info = db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
-  if (info.changes === 0) {
+export function deleteDish(
+  id: string,
+): { found: true } | { found: false } | { blocked: true } {
+  const dish = db.prepare('SELECT id FROM dishes WHERE id = ?').get(id) as
+    | { id: number }
+    | undefined;
+  if (!dish) {
     return { found: false };
   }
+
+  const referencedByMealLog = db
+    .prepare('SELECT id FROM meal_logs WHERE dish_id = ? LIMIT 1')
+    .get(id) as { id: number } | undefined;
+  if (referencedByMealLog) {
+    return { blocked: true };
+  }
+
+  db.prepare('DELETE FROM dishes WHERE id = ?').run(id);
   return { found: true };
 }
 

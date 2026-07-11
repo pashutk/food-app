@@ -91,6 +91,9 @@ describe('MCP blackbox authenticated workflow', () => {
     expect(toolNames).toContain('remove_dish');
     expect(toolNames).toContain('import_dishes');
     expect(toolNames).toContain('update_menu');
+    expect(toolNames).toContain('log_meal');
+    expect(toolNames).toContain('view_meal_logs');
+    expect(toolNames).toContain('remove_meal_log');
   });
 
   // Step 3: Login returns a usable JWT

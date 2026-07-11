@@ -1,13 +1,16 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import db from '../../db';
 import * as dishesService from '../dishes';
+import * as mealLogsService from '../mealLogs';
 
 describe('dishes service', () => {
   beforeEach(() => {
+    db.exec('DELETE FROM meal_logs');
     // Clear dishes table before each test
     db.exec('DELETE FROM dishes');
     // Reset AUTOINCREMENT counter
     db.exec('DELETE FROM sqlite_sequence WHERE name = \'dishes\'');
+    db.exec('DELETE FROM sqlite_sequence WHERE name = \'meal_logs\'');
   });
 
   describe('listDishes', () => {
@@ -116,6 +119,18 @@ describe('dishes service', () => {
     it('returns not found when dish does not exist', () => {
       const result = dishesService.deleteDish('999');
       expect(result).toEqual({ found: false });
+    });
+
+    it('blocks deleting a dish with meal logs', () => {
+      const dish = dishesService.createDish({ name: 'Referenced Dish' });
+      const mealLog = mealLogsService.createMealLog({
+        date: '2026-07-10',
+        dishId: dish.id,
+        slot: 'dinner',
+      });
+
+      expect(mealLog.ok).toBe(true);
+      expect(dishesService.deleteDish(String(dish.id))).toEqual({ blocked: true });
     });
   });
 
