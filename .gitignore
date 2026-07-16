@@ -3,3 +3,6 @@ dist/
 backend/public/
 data/
 .env
+
+# macOS Finder metadata
+.DS_Store
