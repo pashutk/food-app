@@ -1,4 +1,4 @@
-import type { Dish, DailyMenu } from './types';
+import type { Dish, DailyMenu, MealLog, MealLogWithDish, MealSlot } from './types';
 
 function token() { return localStorage.getItem('token'); }
 export function isAuthenticated() { return !!token(); }
@@ -41,4 +41,11 @@ export const menus = {
   get: (date: string) => req<DailyMenu>(`/menus/${date}`),
   save: (date: string, entries: DailyMenu['entries']) =>
     req<DailyMenu>(`/menus/${date}`, { method: 'PUT', body: JSON.stringify({ entries }) }),
+};
+
+export const mealLogs = {
+  list: (date: string) => req<MealLogWithDish[]>(`/meal-logs?date=${encodeURIComponent(date)}`),
+  create: (data: { date: string; dishId: number; slot?: MealSlot }) =>
+    req<MealLog>('/meal-logs', { method: 'POST', body: JSON.stringify(data) }),
+  remove: (id: number) => req<{ success: boolean }>(`/meal-logs/${id}`, { method: 'DELETE' }),
 };

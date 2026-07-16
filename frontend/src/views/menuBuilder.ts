@@ -1,5 +1,5 @@
-import { dishes as dishesApi, menus } from '../api';
-import type { Dish, DailyMenu, MealSlot } from '../types';
+import { dishes as dishesApi, mealLogs as mealLogsApi, menus } from '../api';
+import type { Dish, DailyMenu, MealLogWithDish, MealSlot } from '../types';
 import { icon, CHEVRON_LEFT, CHEVRON_RIGHT, PLUS, TRASH } from '../icons';
 
 const SLOTS: MealSlot[] = ['breakfast', 'lunch', 'dinner', 'snack'];
@@ -34,9 +34,29 @@ export async function renderMenuBuilder(container: HTMLElement) {
   let date = today();
   let menu: DailyMenu = { date, entries: [] };
   let allDishes: Dish[] = [];
+  let mealLogs: MealLogWithDish[] = [];
+  let selectedMealLogDishId = '';
+  let selectedMealLogSlot = '';
+  let mealLogError = '';
+  let mealLogSaving = false;
+  let loadRequestId = 0;
 
   async function load() {
-    [menu, allDishes] = await Promise.all([menus.get(date), dishesApi.list()]);
+    const requestedDate = date;
+    const requestId = ++loadRequestId;
+    const [nextMenu, nextDishes, nextMealLogs] = await Promise.all([
+      menus.get(requestedDate),
+      dishesApi.list(),
+      mealLogsApi.list(requestedDate),
+    ]);
+
+    if (requestId !== loadRequestId || requestedDate !== date) {
+      return;
+    }
+
+    menu = nextMenu;
+    allDishes = nextDishes;
+    mealLogs = nextMealLogs;
     render();
   }
 
@@ -64,6 +84,59 @@ export async function renderMenuBuilder(container: HTMLElement) {
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           ${SLOTS.map(slot => renderSlot(slot, dishMap)).join('')}
         </div>
+
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4 space-y-4">
+          <div>
+            <h3 class="font-medium text-gray-900 dark:text-gray-100">Log dish</h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Record what actually happened on ${formatDate(date)}.</p>
+          </div>
+
+          ${mealLogError
+            ? `<div class="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">${escapeHtml(mealLogError)}</div>`
+            : ''}
+
+          <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_12rem_auto] gap-2">
+            <select id="meal-log-dish"
+              class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">Choose a dish…</option>
+              ${allDishes.map(d => `
+                <option value="${d.id}" ${selectedMealLogDishId === String(d.id) ? 'selected' : ''}>${escapeHtml(d.name)}</option>
+              `).join('')}
+            </select>
+
+            <select id="meal-log-slot"
+              class="w-full border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">No slot</option>
+              ${SLOTS.map(slot => `
+                <option value="${slot}" ${selectedMealLogSlot === slot ? 'selected' : ''}>${SLOT_LABELS[slot]}</option>
+              `).join('')}
+            </select>
+
+            <button id="meal-log-save" ${mealLogSaving || allDishes.length === 0 ? 'disabled' : ''}
+              class="bg-blue-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
+              ${mealLogSaving ? 'Saving…' : 'Log dish'}
+            </button>
+          </div>
+
+          ${allDishes.length === 0
+            ? '<p class="text-xs text-gray-400 dark:text-gray-500">Create a dish in the library before logging meals.</p>'
+            : ''}
+        </div>
+
+        <div class="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <h3 class="font-medium text-gray-900 dark:text-gray-100">Logged meals</h3>
+            <span class="text-xs text-gray-400 dark:text-gray-500">${mealLogs.length} log${mealLogs.length === 1 ? '' : 's'}</span>
+          </div>
+
+          ${mealLogs.length === 0
+            ? '<p class="text-sm text-gray-400 dark:text-gray-500">No meals logged for this date yet.</p>'
+            : `
+              <div class="space-y-2">
+                ${mealLogs.map(renderMealLogRow).join('')}
+              </div>
+            `}
+        </div>
       </div>
     `;
 
@@ -78,6 +151,57 @@ export async function renderMenuBuilder(container: HTMLElement) {
     container.querySelector<HTMLInputElement>('#date-input')!.addEventListener('change', (e) => {
       date = (e.target as HTMLInputElement).value;
       load();
+    });
+
+    container.querySelector<HTMLSelectElement>('#meal-log-dish')?.addEventListener('change', (e) => {
+      selectedMealLogDishId = (e.target as HTMLSelectElement).value;
+    });
+
+    container.querySelector<HTMLSelectElement>('#meal-log-slot')?.addEventListener('change', (e) => {
+      selectedMealLogSlot = (e.target as HTMLSelectElement).value;
+    });
+
+    container.querySelector('#meal-log-save')?.addEventListener('click', async () => {
+      if (!selectedMealLogDishId) {
+        mealLogError = 'Choose a dish to log.';
+        render();
+        return;
+      }
+
+      mealLogError = '';
+      mealLogSaving = true;
+      render();
+
+      try {
+        await mealLogsApi.create({
+          date,
+          dishId: parseInt(selectedMealLogDishId, 10),
+          ...(selectedMealLogSlot ? { slot: selectedMealLogSlot as MealSlot } : {}),
+        });
+        selectedMealLogDishId = '';
+        selectedMealLogSlot = '';
+        mealLogSaving = false;
+        await load();
+      } catch (error) {
+        mealLogError = (error as Error).message;
+        mealLogSaving = false;
+        render();
+      }
+    });
+
+    container.querySelectorAll('.meal-log-remove-btn').forEach((button) => {
+      button.addEventListener('click', async () => {
+        mealLogError = '';
+        render();
+
+        try {
+          await mealLogsApi.remove(parseInt((button as HTMLElement).dataset.id!, 10));
+          await load();
+        } catch (error) {
+          mealLogError = (error as Error).message;
+          render();
+        }
+      });
     });
 
     SLOTS.forEach(slot => {
@@ -141,6 +265,30 @@ export async function renderMenuBuilder(container: HTMLElement) {
         ` : `<p class="text-xs text-gray-400 dark:text-gray-500">All dishes added</p>`}
       </div>
     `;
+  }
+
+  function renderMealLogRow(log: MealLogWithDish) {
+    return `
+      <div class="flex items-center gap-3 rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2" data-meal-log-row="${log.id}">
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-gray-900 dark:text-gray-100">${escapeHtml(log.dish.name)}</div>
+          <div class="text-xs text-gray-500 dark:text-gray-400">
+            ${log.slot ? SLOT_LABELS[log.slot] : 'No slot'}
+          </div>
+        </div>
+        <button class="meal-log-remove-btn text-gray-400 hover:text-red-500 shrink-0" data-id="${log.id}" aria-label="Delete meal log">
+          ${icon(TRASH)}
+        </button>
+      </div>
+    `;
+  }
+
+  function escapeHtml(value: string) {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   container.innerHTML = `<div class="flex justify-center py-8"><div class="text-gray-400 dark:text-gray-500 text-sm">Loading…</div></div>`;

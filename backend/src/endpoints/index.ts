@@ -2,6 +2,11 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { verifyCredentials, issueToken } from '../services/auth';
 import * as dishesService from '../services/dishes';
+import {
+  MEAL_SLOTS,
+  isValidDate as isValidMealLogDate,
+} from '../services/mealLogs';
+import * as mealLogsService from '../services/mealLogs';
 import * as menusService from '../services/menus';
 import { tagsDescription } from './tags';
 
@@ -103,8 +108,28 @@ const menuDateSchema = z.object({
   date: z.string().describe('Menu date in YYYY-MM-DD format'),
 });
 
+const mealLogDateField = z
+  .string()
+  .describe('Date in YYYY-MM-DD format');
+
+const mealSlotSchema = z.enum(MEAL_SLOTS);
+
 const updateMenuInputSchema = menuDateSchema.extend({
   entries: z.array(z.unknown()).describe('Menu entries to upsert'),
+});
+
+const mealLogIdSchema = z.object({
+  id: z.string().describe('ID of the meal log'),
+});
+
+const createMealLogInputSchema = z.object({
+  date: mealLogDateField,
+  dishId: z.number().int().positive().describe('ID of the registered dish to log'),
+  slot: mealSlotSchema.optional().describe('Optional meal slot for the logged dish'),
+});
+
+const listMealLogsInputSchema = z.object({
+  date: mealLogDateField,
 });
 
 const dishSchema = z
@@ -149,6 +174,30 @@ const menuOutputSchema = z
     entries: z.array(z.unknown()),
   })
   .passthrough();
+
+const mealLogSchema = z.object({
+  id: z.number(),
+  date: z.string(),
+  dishId: z.number(),
+  slot: mealSlotSchema.nullable(),
+  created_at: z.string(),
+  updated_at: z.string(),
+});
+
+const mealLogWithDishSchema = mealLogSchema.extend({
+  dish: z.object({
+    id: z.number(),
+    name: z.string(),
+  }),
+});
+
+const mealLogOutputSchema = z.object({
+  mealLog: mealLogSchema,
+});
+
+const mealLogsOutputSchema = z.object({
+  mealLogs: z.array(mealLogWithDishSchema),
+});
 
 export const endpointRegistry = [
   defineEndpoint({
@@ -243,6 +292,15 @@ export const endpointRegistry = [
     outputSchema: removeDishOutputSchema,
     handle: ({ id }) => {
       const result = dishesService.deleteDish(id);
+      if ('blocked' in result) {
+        throw new EndpointError({
+          status: 409,
+          message: 'Cannot delete dish with meal history',
+          restBody: { error: 'Cannot delete dish with meal history' },
+          mcpBody: { error: 'Cannot delete dish with meal history' },
+        });
+      }
+
       if (!result.found) {
         const error = `Dish with id ${id} not found`;
         throw new EndpointError({
@@ -321,6 +379,117 @@ export const endpointRegistry = [
       method: 'put',
       path: '/api/menus/:date',
       getInput: (req) => ({ date: req.params.date, entries: req.body?.entries }),
+    },
+  }),
+  defineEndpoint({
+    name: 'log_meal',
+    description: 'Record that a registered dish happened on a specific date',
+    auth: 'protected',
+    inputSchema: createMealLogInputSchema,
+    outputSchema: mealLogOutputSchema,
+    handle: ({ date, dishId, slot }) => {
+      if (!isValidMealLogDate(date)) {
+        throw new EndpointError({
+          status: 400,
+          message: 'Invalid date',
+          restBody: { error: 'Invalid date' },
+          mcpBody: { error: 'Invalid date' },
+        });
+      }
+
+      const result = mealLogsService.createMealLog({ date, dishId, slot });
+      if (!result.ok) {
+        if (result.reason === 'duplicate') {
+          throw new EndpointError({
+            status: 409,
+            message: 'Meal log already exists for that date, slot, and dish',
+            restBody: { error: 'Meal log already exists for that date, slot, and dish' },
+            mcpBody: { error: 'Meal log already exists for that date, slot, and dish' },
+          });
+        }
+
+        const error =
+          result.reason === 'invalid_dish'
+            ? 'Dish not found'
+            : result.reason === 'invalid_slot'
+              ? 'Invalid meal slot'
+              : 'Invalid date';
+        throw new EndpointError({
+          status: 400,
+          message: error,
+          restBody: { error },
+          mcpBody: { error },
+        });
+      }
+
+      return { mealLog: result.mealLog };
+    },
+    rest: {
+      method: 'post',
+      path: '/api/meal-logs',
+      successStatus: 201,
+      getInput: (req) => req.body,
+      presentSuccess: (output) => output.mealLog,
+    },
+  }),
+  defineEndpoint({
+    name: 'view_meal_logs',
+    description: 'List meal logs for a specific date',
+    auth: 'protected',
+    inputSchema: listMealLogsInputSchema,
+    outputSchema: mealLogsOutputSchema,
+    handle: ({ date }) => {
+      if (!isValidMealLogDate(date)) {
+        throw new EndpointError({
+          status: 400,
+          message: 'Invalid date',
+          restBody: { error: 'Invalid date' },
+          mcpBody: { error: 'Invalid date' },
+        });
+      }
+
+      const result = mealLogsService.listMealLogsByDate(date);
+      if (!result.ok) {
+        throw new EndpointError({
+          status: 400,
+          message: 'Invalid date',
+          restBody: { error: 'Invalid date' },
+          mcpBody: { error: 'Invalid date' },
+        });
+      }
+
+      return { mealLogs: result.mealLogs };
+    },
+    rest: {
+      method: 'get',
+      path: '/api/meal-logs',
+      getInput: (req) => ({ date: String(req.query.date ?? '') }),
+      presentSuccess: (output) => output.mealLogs,
+    },
+  }),
+  defineEndpoint({
+    name: 'remove_meal_log',
+    description: 'Delete a meal log by id',
+    auth: 'protected',
+    inputSchema: mealLogIdSchema,
+    outputSchema: removeDishOutputSchema,
+    handle: ({ id }) => {
+      const result = mealLogsService.deleteMealLog(id);
+      if (!result.ok) {
+        throw new EndpointError({
+          status: 404,
+          message: `Meal log with id ${id} not found`,
+          restBody: { error: `Meal log with id ${id} not found` },
+          mcpBody: { error: `Meal log with id ${id} not found` },
+        });
+      }
+
+      return { success: true as const };
+    },
+    rest: {
+      method: 'delete',
+      path: '/api/meal-logs/:id',
+      getInput: (req) => ({ id: req.params.id }),
     },
   }),
 ] as const satisfies readonly AppEndpoint[];

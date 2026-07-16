@@ -29,3 +29,16 @@ export interface DailyMenu {
   date: string;
   entries: MenuEntry[];
 }
+
+export interface MealLog {
+  id: number;
+  date: string;
+  dishId: number;
+  slot: MealSlot | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface MealLogWithDish extends MealLog {
+  dish: Pick<Dish, 'id' | 'name'>;
+}

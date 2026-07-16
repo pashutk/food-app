@@ -26,6 +26,24 @@ db.exec(`
     date TEXT PRIMARY KEY,
     entries TEXT NOT NULL DEFAULT '[]'
   );
+
+  CREATE TABLE IF NOT EXISTS meal_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    dish_id INTEGER NOT NULL,
+    slot TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (dish_id) REFERENCES dishes(id) ON DELETE RESTRICT
+  );
+`);
+
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_meal_logs_date ON meal_logs(date);
+  CREATE INDEX IF NOT EXISTS idx_meal_logs_dish_date ON meal_logs(dish_id, date);
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_meal_logs_unique_slotted
+    ON meal_logs(date, slot, dish_id)
+    WHERE slot IS NOT NULL;
 `);
 
 export default db;
