@@ -17,6 +17,7 @@ describe('endpoint registry parity', () => {
       'edit_dish',
       'remove_dish',
       'import_dishes',
+      'recommend_dishes',
       'view_menu',
       'update_menu',
       'log_meal',
