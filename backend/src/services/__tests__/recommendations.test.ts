@@ -3,14 +3,11 @@ import db from '../../db';
 import * as dishesService from '../dishes';
 import * as mealLogsService from '../mealLogs';
 import { recommendDishes } from '../recommendations';
+import { resetDatabase } from '../../test/resetDatabase';
 
 describe('dish recommendations service', () => {
   beforeEach(() => {
-    db.exec('DELETE FROM meal_logs');
-    db.exec('DELETE FROM dishes');
-    db.exec('DELETE FROM menus');
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'meal_logs'");
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'dishes'");
+    resetDatabase();
   });
 
   it('returns only dishes tagged with the requested kind', () => {

@@ -1,44 +1,16 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
-import type { Server } from 'http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createApp } from '../../app';
-import db from '../../db';
+import {
+  startAuthenticatedMcpTestClient,
+  type AuthenticatedMcpTestClient,
+} from '../../test/mcpClient';
+import { resetDatabase } from '../../test/resetDatabase';
 
 const PORT = 4014;
-const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: Server | null = null;
 let client: Client;
-let transport: StreamableHTTPClientTransport;
 let token: string;
-
-async function startServer() {
-  const app = createApp();
-  return new Promise<void>((resolve, reject) => {
-    server = app.listen(PORT, () => resolve());
-    server.on('error', reject);
-  });
-}
-
-async function stopServer() {
-  if (client) {
-    try {
-      await client.close();
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  return new Promise<void>((resolve) => {
-    if (server) {
-      server.close(() => resolve());
-      setTimeout(() => resolve(), 2000);
-    } else {
-      resolve();
-    }
-  });
-}
+let testClient: AuthenticatedMcpTestClient;
 
 async function addDish(name: string, tags: string[]) {
   const result = await client.callTool({
@@ -54,32 +26,20 @@ async function addDish(name: string, tags: string[]) {
 
 describe('MCP recommend_dishes tool', () => {
   beforeAll(async () => {
-    await startServer();
-
-    transport = new StreamableHTTPClientTransport(new URL(BASE_URL));
-    client = new Client(
-      { name: 'recommend-dishes-test-client', version: '0.1.0' },
-      { capabilities: {} },
-    );
-    await client.connect(transport);
-
-    const loginResult = await client.callTool({
-      name: 'login',
-      arguments: { username: 'testuser', password: 'testpass' },
+    testClient = await startAuthenticatedMcpTestClient({
+      port: PORT,
+      clientName: 'recommend-dishes-test-client',
     });
-    token = JSON.parse((loginResult.content as any[])[0].text).token;
+    client = testClient.client;
+    token = testClient.token;
   }, 10000);
 
   afterAll(async () => {
-    await stopServer();
+    await testClient.close();
   }, 5000);
 
   beforeEach(() => {
-    db.exec('DELETE FROM meal_logs');
-    db.exec('DELETE FROM dishes');
-    db.exec('DELETE FROM menus');
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'meal_logs'");
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'dishes'");
+    resetDatabase();
   });
 
   it('is listed and requires auth.token', async () => {

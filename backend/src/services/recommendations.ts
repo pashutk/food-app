@@ -2,23 +2,23 @@ import db from '../db';
 import { parse, type DishRow, type ParsedDish } from './dishes';
 import type { MealSlot } from './mealLogs';
 
-export interface RecommendationRequest {
+interface RecommendationRequest {
   kind: MealSlot;
   count: number;
 }
 
-export interface RecommendDishesInput {
+interface RecommendDishesInput {
   date: string;
   requests: RecommendationRequest[];
 }
 
-export interface RecommendationGroup {
+interface RecommendationGroup {
   kind: MealSlot;
   requested: number;
   dishes: ParsedDish[];
 }
 
-export interface RecommendationResult {
+interface RecommendationResult {
   date: string;
   recommendations: RecommendationGroup[];
 }

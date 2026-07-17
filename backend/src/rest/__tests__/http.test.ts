@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Server } from 'http';
 import db from '../../db';
 import { createApp } from '../../app';
+import { resetDatabase } from '../../test/resetDatabase';
 
 const PORT = 4011;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -57,11 +58,7 @@ describe('REST endpoint adapter', () => {
   }, 5000);
 
   beforeEach(() => {
-    db.exec('DELETE FROM meal_logs');
-    db.exec('DELETE FROM dishes');
-    db.exec('DELETE FROM menus');
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'meal_logs'");
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'dishes'");
+    resetDatabase();
   });
 
   it('preserves login success and invalid-credential failure', async () => {
