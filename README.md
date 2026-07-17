@@ -116,6 +116,7 @@ The StreamableHTTP transport requires the client to send **both** `application/j
 | `edit_dish` | Yes | `auth.token`, `id`, `name`, `tags?`, `takeout?`, `ingredients?`, `instructions?`, `notes?` | Update an existing dish |
 | `remove_dish` | Yes | `auth.token`, `id` (string) | Delete a dish by ID |
 | `import_dishes` | Yes | `auth.token`, `items` (array of dish objects) | Bulk import dishes; fails if any name already exists |
+| `recommend_dishes` | Yes | `auth.token`, `date` (YYYY-MM-DD), `requests` (`kind`/`count` array) | Recommend unique dishes by meal kind, excluding dishes logged in the two-day cooldown window |
 | `update_menu` | Yes | `auth.token`, `date` (YYYY-MM-DD), `entries` (array) | Create or replace menu entries for a date |
 
 ### Auth Flow

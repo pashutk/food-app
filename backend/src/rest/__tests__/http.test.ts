@@ -2,6 +2,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { Server } from 'http';
 import db from '../../db';
 import { createApp } from '../../app';
+import { resetDatabase } from '../../test/resetDatabase';
 
 const PORT = 4011;
 const BASE_URL = `http://127.0.0.1:${PORT}`;
@@ -57,11 +58,7 @@ describe('REST endpoint adapter', () => {
   }, 5000);
 
   beforeEach(() => {
-    db.exec('DELETE FROM meal_logs');
-    db.exec('DELETE FROM dishes');
-    db.exec('DELETE FROM menus');
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'meal_logs'");
-    db.exec("DELETE FROM sqlite_sequence WHERE name = 'dishes'");
+    resetDatabase();
   });
 
   it('preserves login success and invalid-credential failure', async () => {
@@ -386,6 +383,144 @@ describe('REST endpoint adapter', () => {
     expect(deleteResponse.status).toBe(409);
     expect(await deleteResponse.json()).toEqual({
       error: 'Cannot delete dish with meal history',
+    });
+  });
+
+  it('returns grouped, eligible, unique recommendations for several kinds', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+    const createDish = async (name: string, tags: string[]) => {
+      const response = await fetch(`${BASE_URL}/api/dishes`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify({ name, tags }),
+      });
+      return response.json() as Promise<any>;
+    };
+
+    await createDish('REST Breakfast 1', ['breakfast']);
+    await createDish('REST Breakfast 2', ['breakfast']);
+    await createDish('REST Lunch 1', ['lunch']);
+    await createDish('REST Lunch 2', ['lunch']);
+    await createDish('REST Dinner', ['dinner']);
+    const coolingDown = await createDish('REST Recent Dinner', ['dinner']);
+
+    await fetch(`${BASE_URL}/api/meal-logs`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-19',
+        dishId: coolingDown.id,
+        slot: 'breakfast',
+      }),
+    });
+
+    const response = await fetch(`${BASE_URL}/api/recommendations`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-20',
+        requests: [
+          { kind: 'breakfast', count: 2 },
+          { kind: 'lunch', count: 2 },
+          { kind: 'dinner', count: 1 },
+        ],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    const result = (await response.json()) as any;
+    expect(result.date).toBe('2026-07-20');
+    expect(result.recommendations.map(({ kind }: any) => kind)).toEqual([
+      'breakfast',
+      'lunch',
+      'dinner',
+    ]);
+    expect(result.recommendations.map(({ requested }: any) => requested)).toEqual([2, 2, 1]);
+    expect(result.recommendations.map(({ dishes }: any) => dishes.length)).toEqual([2, 2, 1]);
+
+    const returned = result.recommendations.flatMap(({ dishes }: any) => dishes);
+    expect(new Set(returned.map(({ id }: any) => id)).size).toBe(returned.length);
+    expect(returned.map(({ id }: any) => id)).not.toContain(coolingDown.id);
+    expect(returned[0]).toMatchObject({
+      id: expect.any(Number),
+      name: expect.any(String),
+      tags: expect.any(Array),
+      takeout: expect.any(Boolean),
+      ingredients: expect.any(Array),
+      instructions: expect.any(String),
+      notes: expect.any(String),
+      created_at: expect.any(String),
+      updated_at: expect.any(String),
+    });
+  });
+
+  it('requires authentication for recommendations', async () => {
+    const response = await fetch(`${BASE_URL}/api/recommendations`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        date: '2026-07-20',
+        requests: [{ kind: 'dinner', count: 1 }],
+      }),
+    });
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({ error: 'Unauthorized' });
+  });
+
+  it('rejects invalid recommendation requests', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+    const invalidBodies = [
+      { date: '2026-02-31', requests: [{ kind: 'dinner', count: 1 }] },
+      { date: '2026-07-20', requests: [{ kind: 'brunch', count: 1 }] },
+      { date: '2026-07-20', requests: [{ kind: 'dinner', count: 0 }] },
+      { date: '2026-07-20', requests: [{ kind: 'dinner', count: 1.5 }] },
+      { date: '2026-07-20', requests: [{ kind: 'dinner', count: 101 }] },
+      { date: '2026-07-20', requests: [] },
+      {
+        date: '2026-07-20',
+        requests: [
+          { kind: 'lunch', count: 1 },
+          { kind: 'lunch', count: 2 },
+        ],
+      },
+    ];
+
+    for (const invalidBody of invalidBodies) {
+      const response = await fetch(`${BASE_URL}/api/recommendations`, {
+        method: 'POST',
+        headers: authHeaders(token),
+        body: JSON.stringify(invalidBody),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ error: 'Invalid request' });
+    }
+  });
+
+  it('returns HTTP 200 with a self-describing partial recommendation', async () => {
+    const { body } = await login();
+    const token = body.token as string;
+    await fetch(`${BASE_URL}/api/dishes`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({ name: 'Only REST Snack', tags: ['snack'] }),
+    });
+
+    const response = await fetch(`${BASE_URL}/api/recommendations`, {
+      method: 'POST',
+      headers: authHeaders(token),
+      body: JSON.stringify({
+        date: '2026-07-20',
+        requests: [{ kind: 'snack', count: 2 }],
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      recommendations: [{ kind: 'snack', requested: 2, dishes: [{ name: 'Only REST Snack' }] }],
     });
   });
 });

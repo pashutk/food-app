@@ -1,43 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import type { Server } from 'http';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { createApp } from '../../app';
+import {
+  startAuthenticatedMcpTestClient,
+  type AuthenticatedMcpTestClient,
+} from '../../test/mcpClient';
 
 const PORT = 4013;
-const BASE_URL = `http://localhost:${PORT}/mcp`;
 
-let server: Server | null = null;
 let client: Client;
-let transport: StreamableHTTPClientTransport;
 let token: string;
-
-async function startServer() {
-  const app = createApp();
-  return new Promise<void>((resolve, reject) => {
-    server = app.listen(PORT, () => resolve());
-    server.on('error', reject);
-  });
-}
-
-async function stopServer() {
-  if (client) {
-    try {
-      await client.close();
-    } catch (_) {
-      // ignore
-    }
-  }
-
-  return new Promise<void>((resolve) => {
-    if (server) {
-      server.close(() => resolve());
-      setTimeout(() => resolve(), 2000);
-    } else {
-      resolve();
-    }
-  });
-}
+let testClient: AuthenticatedMcpTestClient;
 
 async function addDish(name: string) {
   const result = await client.callTool({
@@ -54,26 +26,16 @@ async function addDish(name: string) {
 
 describe('MCP meal log tools', () => {
   beforeAll(async () => {
-    await startServer();
-
-    transport = new StreamableHTTPClientTransport(new URL(BASE_URL));
-    client = new Client(
-      { name: 'meal-logs-test-client', version: '0.1.0' },
-      { capabilities: {} },
-    );
-
-    await client.connect(transport);
-
-    const loginResult = await client.callTool({
-      name: 'login',
-      arguments: { username: 'testuser', password: 'testpass' },
+    testClient = await startAuthenticatedMcpTestClient({
+      port: PORT,
+      clientName: 'meal-logs-test-client',
     });
-    const loginData = JSON.parse((loginResult.content as any[])[0].text);
-    token = loginData.token;
+    client = testClient.client;
+    token = testClient.token;
   }, 10000);
 
   afterAll(async () => {
-    await stopServer();
+    await testClient.close();
   }, 5000);
 
   it('lists log_meal, view_meal_logs, and remove_meal_log', async () => {

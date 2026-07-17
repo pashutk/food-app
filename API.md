@@ -190,6 +190,63 @@ Protected MCP tools require an `auth` object:
 
 - Auth: protected
 
+## Recommendations
+
+### `recommend_dishes`
+
+- Purpose: recommend unique dishes for one or more meal kinds on a target date.
+- REST: `POST /api/recommendations`
+- MCP: `recommend_dishes`
+- Input:
+
+```json
+{
+  "date": "2026-07-20",
+  "requests": [
+    { "kind": "breakfast", "count": 2 },
+    { "kind": "lunch", "count": 2 },
+    { "kind": "dinner", "count": 1 }
+  ]
+}
+```
+
+Each kind may appear once and must be `breakfast`, `lunch`, `dinner`, or `snack`.
+Counts must be positive integers no greater than 100.
+
+- Output:
+
+```json
+{
+  "date": "2026-07-20",
+  "recommendations": [
+    {
+      "kind": "breakfast",
+      "requested": 2,
+      "dishes": [
+        {
+          "id": 1,
+          "name": "Oatmeal with berries",
+          "tags": ["breakfast"],
+          "takeout": false,
+          "ingredients": [],
+          "instructions": "",
+          "notes": "",
+          "created_at": "...",
+          "updated_at": "..."
+        }
+      ]
+    }
+  ]
+}
+```
+
+Groups remain in request order and no dish is repeated across groups. A dish logged on
+the target date or either of the two preceding calendar dates is excluded regardless
+of the logged meal slot. If there are not enough eligible dishes, the operation returns
+a successful partial result with fewer `dishes` than `requested`.
+
+- Auth: protected
+
 ## Menus
 
 ### `view_menu`

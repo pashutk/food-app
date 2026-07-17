@@ -8,6 +8,7 @@ import {
 } from '../services/mealLogs';
 import * as mealLogsService from '../services/mealLogs';
 import * as menusService from '../services/menus';
+import * as recommendationsService from '../services/recommendations';
 import { tagsDescription } from './tags';
 
 export type EndpointAuth = 'public' | 'protected';
@@ -132,6 +133,27 @@ const listMealLogsInputSchema = z.object({
   date: mealLogDateField,
 });
 
+const recommendationRequestSchema = z.object({
+  kind: mealSlotSchema.describe('Meal kind to recommend'),
+  count: z.number().int().positive().max(100).describe('Number of dishes to recommend'),
+});
+
+const recommendDishesInputSchema = z.object({
+  date: z
+    .string()
+    .refine(isValidMealLogDate, { message: 'Invalid date' })
+    .describe('Recommendation date in YYYY-MM-DD format'),
+  requests: z
+    .array(recommendationRequestSchema)
+    .min(1)
+    .max(4)
+    .refine(
+      (requests) => new Set(requests.map(({ kind }) => kind)).size === requests.length,
+      { message: 'Each recommendation kind may appear at most once' },
+    )
+    .describe('Requested recommendation groups'),
+});
+
 const dishSchema = z
   .object({
     id: z.number(),
@@ -197,6 +219,17 @@ const mealLogOutputSchema = z.object({
 
 const mealLogsOutputSchema = z.object({
   mealLogs: z.array(mealLogWithDishSchema),
+});
+
+const recommendationsOutputSchema = z.object({
+  date: z.string(),
+  recommendations: z.array(
+    z.object({
+      kind: mealSlotSchema,
+      requested: z.number().int().positive(),
+      dishes: z.array(dishSchema),
+    }),
+  ),
 });
 
 export const endpointRegistry = [
@@ -352,6 +385,20 @@ export const endpointRegistry = [
 
         return { items: req.body };
       },
+    },
+  }),
+  defineEndpoint({
+    name: 'recommend_dishes',
+    description:
+      'Recommend unique dishes for one or more meal kinds, excluding dishes logged in the two-day cooldown window',
+    auth: 'protected',
+    inputSchema: recommendDishesInputSchema,
+    outputSchema: recommendationsOutputSchema,
+    handle: (input) => recommendationsService.recommendDishes(input),
+    rest: {
+      method: 'post',
+      path: '/api/recommendations',
+      getInput: (req) => req.body,
     },
   }),
   defineEndpoint({
